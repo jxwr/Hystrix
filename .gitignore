@@ -2,10 +2,12 @@
 ###################
 *.com
 *.class
+classes
 *.dll
 *.exe
 *.o
 *.so
+node_modules
 
 # Packages #
 ############
