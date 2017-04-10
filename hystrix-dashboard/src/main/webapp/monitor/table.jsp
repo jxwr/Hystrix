@@ -11,6 +11,17 @@
             background-color: red;
             text-decoration: underline;
         }
+        .underline {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+        .green { color: green; }
+        .blue { color: blue; }
+        .lightSeaGreen { color: lightSeaGreen; }
+        .gold { color: darkorange; }
+        .purple { color: purple; }
+        .purple { color: purple; }
+        .red { color: red; }
     </style>
 </head>
 <body>

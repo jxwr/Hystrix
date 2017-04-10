@@ -3,49 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import ReactTable from 'react-table';
 
-function addCommas(nStr){
-    nStr += '';
-    if(nStr.length <=3) {
-        return nStr; //shortcut if we don't need commas
-    }
-    let x = nStr.split('.');
-    let x1 = x[0];
-    let x2 = x.length > 1 ? '.' + x[1] : '';
-    let rgx = /(\d+)(\d{3})/;
-    while (rgx.test(x1)) {
-        x1 = x1.replace(rgx, '$1' + ',' + '$2');
-    }
-    return x1 + x2;
-}
-
-function getUrlVars() {
-    var vars = [], hash;
-    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
-    for(var i = 0; i < hashes.length; i++) {
-        hash = hashes[i].split('=');
-        vars.push(hash[0]);
-        vars[hash[0]] = hash[1];
-    }
-    return vars;
-}
-
-function roundNumber(num) {
-    var dec=1;
-    var result = Math.round(num*Math.pow(10,dec))/Math.pow(10,dec);
-    var resultAsString = result.toString();
-    if(resultAsString.indexOf('.') == -1) {
-        resultAsString = resultAsString + '.0';
-    }
-    return resultAsString;
-};
-
-function getInstanceAverage(value, reportingHosts, decimal) {
-    if (decimal) {
-        return roundNumber(value/reportingHosts);
-    } else {
-        return Math.floor(value/reportingHosts);
-    }
-}
+import { assertEqual, getUrlVars, getInstanceAverage, roundNumber, addCommas } from './util';
 
 const urlVars = getUrlVars();
 
@@ -60,24 +18,19 @@ const streams = urlVars.streams ? JSON.parse(decodeURIComponent(urlVars.streams)
 let CommandTable = React.createClass({
     getInitialState: function() {
         var proxyStream = "../proxy.stream?origin=" + this.props.origin;
-        this.source = new EventSource(proxyStream);
+        let source = new EventSource(proxyStream);
+        this.source = source;
         this.source.addEventListener('message', this.onMessage, false);
 
         this.rows = [];
         this.commands = {};
+        this.commandsByPool = {};
         this.lastUpdateTime = Date.now();
         return {rows: []};
     },
 
-    calcRatePerSecond: function(msg) {
-        var numberSeconds = msg["propertyValue_metricsRollingStatisticalWindowInMilliseconds"] / 1000;
-
-        var totalRequests = msg["requestCount"];
-        if (totalRequests < 0) {
-            totalRequests = 0;
-        }
-        msg["ratePerSecond"] =  roundNumber(totalRequests / numberSeconds);
-        msg["ratePerSecondPerHost"] =  roundNumber(totalRequests / numberSeconds / msg["reportingHosts"]) ;
+    componentWillUnmount: function() {
+        this.source.close();
     },
 
     convertAvg: function(msg, key, decimal) {
@@ -88,29 +41,78 @@ let CommandTable = React.createClass({
         }
     },
 
-    convertAllAvg: function(msg) {
+    // command helpers
+    convertCommandAllAvg: function(msg) {
         this.convertAvg(msg, "errorPercentage", true);
         this.convertAvg(msg, "latencyExecute_mean", false);
     },
 
+    calcCommandRatePerSecond: function(msg) {
+        var numberSeconds = msg["propertyValue_metricsRollingStatisticalWindowInMilliseconds"] / 1000;
+
+        var totalRequests = msg["requestCount"];
+        if (totalRequests < 0) {
+            totalRequests = 0;
+        }
+        msg["ratePerSecond"] =  roundNumber(totalRequests / numberSeconds);
+        msg["ratePerSecondPerHost"] =  roundNumber(totalRequests / numberSeconds / msg["reportingHosts"]) ;
+    },
+
+    // pool helpers
+    converPoolAllAvg: function(msg) {
+        this.convertAvg(msg, "propertyValue_queueSizeRejectionThreshold", false);
+        this.convertAvg(msg, "propertyValue_metricsRollingStatisticalWindowInMilliseconds", false);
+    },
+
+    calcPoolRatePerSecond: function(msg) {
+        var numberSeconds = msg["propertyValue_metricsRollingStatisticalWindowInMilliseconds"] / 1000;
+
+        var totalThreadsExecuted = msg["rollingCountThreadsExecuted"];
+        if (totalThreadsExecuted < 0) {
+            totalThreadsExecuted = 0;
+        }
+        msg["ratePerSecond"] =  roundNumber(totalThreadsExecuted / numberSeconds);
+        msg["ratePerSecondPerHost"] =  roundNumber(totalThreadsExecuted / numberSeconds / msg["reportingHosts"]);
+    },
+
     onMessage: function(e) {
         var msg = JSON.parse(e.data);
+
         if (msg && msg.type == 'HystrixCommand') {
-            this.convertAllAvg(msg);
-            this.calcRatePerSecond(msg);
+            this.convertCommandAllAvg(msg);
+            this.calcCommandRatePerSecond(msg);
 
             if (!_.has(this.commands, msg.name)) {
-                var pos = this.rows.length;
+                let pos = this.rows.length;
                 this.rows.push(msg);
                 this.commands[msg.name] = {msg: msg, pos: pos};
+                this.commandsByPool[msg.threadPool] = {msg: msg, pos: pos};
             }
-            var cmd = this.commands[msg.name];
+
+            let cmd = this.commands[msg.name];
+            msg.pool = this.rows[cmd.pos].pool;
+
             this.rows[cmd.pos] = msg;
-            var now = Date.now();
-            if (now - this.lastUpdateTime > 1000) {
-                this.setState({rows: this.rows});
-                this.lastUpdateTime = now;
+            this.commands[msg.name].msg = msg;
+            this.commandsByPool[msg.threadPool].msg = msg;
+        } else if (msg && msg.type == 'HystrixThreadPool'){
+            this.converPoolAllAvg(msg);
+            this.calcPoolRatePerSecond(msg);
+
+            let poolMsg = msg;
+            let cmd = this.commandsByPool[poolMsg.name];
+
+            if (cmd) {
+                cmd.msg.pool = poolMsg;
+                assertEqual(poolMsg.name, cmd.msg.threadPool);
+                console.log("POOL:" + cmd.msg.pool.name + "," + cmd.msg.threadPool);
             }
+        }
+
+        let now = Date.now();
+        if (now - this.lastUpdateTime > 500) {
+            this.setState({rows: this.rows});
+            this.lastUpdateTime = now;
         }
     },
 
@@ -119,26 +121,49 @@ let CommandTable = React.createClass({
             let hosts = row.reportingHosts;
             return (
                 <tr key={row.name} className="commit">
-                    <td>{i}</td>
-                    <td>{row.name}</td>
-                    <td>{row.threadPool}</td>
-                    <td>{row.reportingHosts}</td>
-                    <td>{row.ratePerSecond}</td>
-                    <td>{getInstanceAverage(row.ratePerSecond,hosts,true)}</td>
-                    <td><span className={row.errorPercentage>0?'fail':'ok'}>{row.errorPercentage}%</span></td>
-                    <td>{getInstanceAverage(row.latencyExecute['50'], hosts, false)}</td>
-                    <td>{getInstanceAverage(row.latencyExecute['90'], hosts, false)}</td>
-                    <td>{getInstanceAverage(row.latencyExecute['95'], hosts, false)}</td>
-                    <td>{getInstanceAverage(row.latencyExecute['99'], hosts, false)}</td>
-                    <td>{getInstanceAverage(row.latencyExecute['99.5'], hosts, false)}</td>
-                    <td>{row.latencyExecute_mean}</td>
-                    <td>{addCommas(row.rollingCountSuccess)}</td>
-                    <td>{addCommas(row.rollingCountShortCircuited)}</td>
-                    <td>{addCommas(row.rollingCountBadRequests)}</td>
-                    <td>{addCommas(row.rollingCountTimeout)}</td>
-                    <td>{addCommas(row.rollingCountThreadPoolRejected)}</td>
-                    <td>{addCommas(row.rollingCountFailure)}</td>
-                    <td>{row.isCircuitBreakerOpen?'open':'closed'}</td>
+                    <td className="result">{i}</td>
+                    <td className="result">{row.name}</td>
+                    <td className="result">{row.reportingHosts}</td>
+                    <td className="result">{row.ratePerSecond}</td>
+                    <td className="result">{getInstanceAverage(row.ratePerSecond,hosts,true)}</td>
+                    <td className="result"><span className={row.errorPercentage>0?'fail':'ok'}>{row.errorPercentage}%</span></td>
+                    <td className="result">{row.latencyExecute_mean}</td>
+                    <td className="result">{getInstanceAverage(row.latencyExecute['50'], hosts, false)}</td>
+                    <td className="result">{getInstanceAverage(row.latencyExecute['90'], hosts, false)}</td>
+                    <td className="result">{getInstanceAverage(row.latencyExecute['95'], hosts, false)}</td>
+                    <td className="result">{getInstanceAverage(row.latencyExecute['99'], hosts, false)}</td>
+                    <td className="result">{getInstanceAverage(row.latencyExecute['99.5'], hosts, false)}</td>
+                    <td className="result"><span className="green">{addCommas(row.rollingCountSuccess)}</span></td>
+                    <td className="result"><span className="blue">{addCommas(row.rollingCountShortCircuited)}</span></td>
+                    <td className="result"><span className="lightSeaGreen">{addCommas(row.rollingCountBadRequests)}</span></td>
+                    <td className="result">
+                        <span className={row.rollingCountTimeout>0?"underline gold":"gold"}>{addCommas(row.rollingCountTimeout)}</span>
+                    </td>
+                    <td className="result">
+                        <span className={row.rollingCountThreadPoolRejected>0?"underline purple":"purple"}>
+                            {addCommas(row.rollingCountThreadPoolRejected)}
+                        </span>
+                    </td>
+                    <td className="result">
+                        <span className={row.rollingCountFailure>0?"underline red":"red"}>
+                            {addCommas(row.rollingCountFailure)}
+                        </span>
+                    </td>
+                    <td className="result">
+                        <span className={row.isCircuitBreakerOpen?'fail':'ok'}>
+                            {row.isCircuitBreakerOpen?'open':'closed'}
+                        </span>
+                    </td>
+
+                    <td className="result">{row.threadPool}</td>
+                    <td className="result">{row.pool?addCommas(row.pool.ratePerSecond):0}</td>
+                    <td className="result">{row.pool?addCommas(row.pool.ratePerSecondPerHost):0}</td>
+                    <td className="result">{row.pool?row.pool.currentActiveCount:0}</td>
+                    <td className="result">{addCommas(row.pool?row.pool.rollingMaxActiveThreads:0)}</td>
+                    <td className="result">{row.pool?row.pool.currentQueueSize:0}</td>
+                    <td className="result">{addCommas(row.pool?row.pool.rollingCountThreadsExecuted:0)}</td>
+                    <td className="result">{row.pool?row.pool.currentPoolSize:0}</td>
+                    <td className="result">{addCommas(row.pool?row.pool.propertyValue_queueSizeRejectionThreshold:0)}</td>
                 </tr>
             );
         });
@@ -148,44 +173,57 @@ let CommandTable = React.createClass({
                 <h2><small>{this.props.origin}</small></h2>
                 <table className="build">
                     <colgroup className="col-result" span="1"></colgroup>
-                    <colgroup className="col-result" span="2"></colgroup>
+                    <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="3"></colgroup>
                     <colgroup className="col-result" span="6"></colgroup>
                     <colgroup className="col-result" span="6"></colgroup>
+                    <colgroup className="col-result" span="1"></colgroup>
+                    <tbody>
                     <tr></tr>
                     <tr>
                         <th>&nbsp;</th>
-                        <th colSpan="2">command</th>
+                        <th colSpan="1">command</th>
                         <th>&nbsp;</th>
                         <th colSpan="3">&nbsp;</th>
                         <th colSpan="6">latency</th>
                         <th colSpan="6">counter</th>
-                        <th>circuit</th>
+                        <th>&nbsp;</th>
+                        <th colSpan="9">pool</th>
                     </tr>
                     <tr>
                         <th className="result arch">&nbsp;</th>
-                        <th>name</th>
-                        <th>pool</th>
-                        <th>h</th>
-                        <th>qps(c)</th>
-                        <th>qps</th>
-                        <th>err</th>
-                        <th>50</th>
-                        <th>90</th>
-                        <th>95</th>
-                        <th>99</th>
-                        <th>99.5</th>
-                        <th>m</th>
-                        <th>suc</th>
-                        <th>sc</th>
-                        <th>bad</th>
-                        <th>to</th>
-                        <th>rej</th>
-                        <th>fb</th>
-                        <th>cb</th>
+                        <th className="result arch">name</th>
+                        <th className="result arch">h</th>
+                        <th className="result arch">qps(c)</th>
+                        <th className="result arch">qps</th>
+                        <th className="result arch">err</th>
+                        <th className="result arch">m</th>
+                        <th className="result arch">50</th>
+                        <th className="result arch">90</th>
+                        <th className="result arch">95</th>
+                        <th className="result arch">99</th>
+                        <th className="result arch">99.5</th>
+                        <th className="result arch">suc</th>
+                        <th className="result arch">sc</th>
+                        <th className="result arch">bad</th>
+                        <th className="result arch">to</th>
+                        <th className="result arch">rej</th>
+                        <th className="result arch">fb</th>
+                        <th className="result arch">cb</th>
+
+                        <th className="result arch">pool</th>
+                        <th className="result arch">qps(c)</th>
+                        <th className="result arch">qps</th>
+                        <th className="result arch">act</th>
+                        <th className="result arch">mact</th>
+                        <th className="result arch">qd</th>
+                        <th className="result arch">exe</th>
+                        <th className="result arch">ps</th>
+                        <th className="result arch">qs</th>
                     </tr>
                     {rows}
+                    </tbody>
                 </table>
             </div>
         );
