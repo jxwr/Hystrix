@@ -9,6 +9,7 @@
         .fail {
             color: white;
             background-color: red;
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -18,6 +19,6 @@
         <div class="clear"></div>
     </header>
     <div id="page"></div>
-    <script src="../dashboard/dist/bundle.js"></script>
+    <script src="../dashboard/dist/bundle.js?ver=<%= System.currentTimeMillis() %>>"></script>
 </body>
 </html>
