@@ -1,7 +1,6 @@
 import * as _ from 'underscore';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import ReactTable from 'react-table';
 
 import { assertEqual, getUrlVars, getInstanceAverage, roundNumber, addCommas } from './util';
 
@@ -17,10 +16,13 @@ const streams = urlVars.streams ? JSON.parse(decodeURIComponent(urlVars.streams)
 
 let CommandTable = React.createClass({
     getInitialState: function() {
-        var proxyStream = "../proxy.stream?origin=" + this.props.origin;
-        let source = new EventSource(proxyStream);
-        this.source = source;
+        let proxyStream = "../proxy.stream?origin=" + this.props.origin;
+        this.source = new EventSource(proxyStream);
         this.source.addEventListener('message', this.onMessage, false);
+
+        this.sortfn = function(msg) { return msg.name; };
+        this.desc = false;
+        this.lastSortingKey = '';
 
         this.rows = [];
         this.commands = {};
@@ -45,12 +47,17 @@ let CommandTable = React.createClass({
     convertCommandAllAvg: function(msg) {
         this.convertAvg(msg, "errorPercentage", true);
         this.convertAvg(msg, "latencyExecute_mean", false);
+
+        // take care of turbine bug
+        if (msg.propertyValue_metricsRollingStatisticalWindowInMilliseconds/msg.reportingHosts % 1000 == 0) {
+            this.convertAvg(msg, "propertyValue_metricsRollingStatisticalWindowInMilliseconds", false);
+        }
     },
 
     calcCommandRatePerSecond: function(msg) {
-        var numberSeconds = msg["propertyValue_metricsRollingStatisticalWindowInMilliseconds"] / 1000;
+        let numberSeconds = msg["propertyValue_metricsRollingStatisticalWindowInMilliseconds"] / 1000;
 
-        var totalRequests = msg["requestCount"];
+        let totalRequests = msg["requestCount"];
         if (totalRequests < 0) {
             totalRequests = 0;
         }
@@ -65,9 +72,9 @@ let CommandTable = React.createClass({
     },
 
     calcPoolRatePerSecond: function(msg) {
-        var numberSeconds = msg["propertyValue_metricsRollingStatisticalWindowInMilliseconds"] / 1000;
+        let numberSeconds = msg["propertyValue_metricsRollingStatisticalWindowInMilliseconds"] / 1000;
 
-        var totalThreadsExecuted = msg["rollingCountThreadsExecuted"];
+        let totalThreadsExecuted = msg["rollingCountThreadsExecuted"];
         if (totalThreadsExecuted < 0) {
             totalThreadsExecuted = 0;
         }
@@ -75,8 +82,18 @@ let CommandTable = React.createClass({
         msg["ratePerSecondPerHost"] =  roundNumber(totalThreadsExecuted / numberSeconds / msg["reportingHosts"]);
     },
 
+    updateRows: function() {
+        let now = Date.now();
+        let rows = _.sortBy(this.rows, this.sortfn);
+        if (!this.desc) {
+            rows = rows.reverse();
+        }
+        this.setState({rows: rows});
+        this.lastUpdateTime = now;
+    },
+
     onMessage: function(e) {
-        var msg = JSON.parse(e.data);
+        let msg = JSON.parse(e.data);
 
         if (msg && msg.type == 'HystrixCommand') {
             this.convertCommandAllAvg(msg);
@@ -103,17 +120,42 @@ let CommandTable = React.createClass({
             let cmd = this.commandsByPool[poolMsg.name];
 
             if (cmd) {
-                cmd.msg.pool = poolMsg;
                 assertEqual(poolMsg.name, cmd.msg.threadPool);
-                console.log("POOL:" + cmd.msg.pool.name + "," + cmd.msg.threadPool);
+                cmd.msg.pool = poolMsg;
             }
         }
 
-        let now = Date.now();
-        if (now - this.lastUpdateTime > 500) {
-            this.setState({rows: this.rows});
-            this.lastUpdateTime = now;
+        if (Date.now() - this.lastUpdateTime > 200) {
+            this.updateRows();
         }
+    },
+
+    handleSorting: function(key0, key1) {
+        return (e) => {
+            if (key0 + '_' + key1 == this.lastSortingKey) {
+                this.desc = !this.desc;
+                this.updateRows();
+                return;
+            }
+
+            this.desc = false;
+            this.lastSortingKey = key0 + '_' + key1;
+            this.sortfn = (v) => {
+                let field = v[key0];
+                if (field == undefined) {
+                    return -1;
+                }
+                if (key1 && field) {
+                    field = field[key1];
+                }
+                if (field == undefined) {
+                    return -1;
+                }
+                let n = (parseFloat(field)*100)/v.reportingHosts;
+                return Number.isNaN(n) ? field : n;
+            };
+            this.updateRows();
+        };
     },
 
     render: function() {
@@ -124,7 +166,7 @@ let CommandTable = React.createClass({
                     <td className="result">{i}</td>
                     <td className="result">{row.name}</td>
                     <td className="result">{row.reportingHosts}</td>
-                    <td className="result">{row.ratePerSecond}</td>
+                    <td className="result">{addCommas(row.ratePerSecond)}</td>
                     <td className="result">{getInstanceAverage(row.ratePerSecond,hosts,true)}</td>
                     <td className="result"><span className={row.errorPercentage>0?'fail':'ok'}>{row.errorPercentage}%</span></td>
                     <td className="result">{row.latencyExecute_mean}</td>
@@ -134,23 +176,31 @@ let CommandTable = React.createClass({
                     <td className="result">{getInstanceAverage(row.latencyExecute['99'], hosts, false)}</td>
                     <td className="result">{getInstanceAverage(row.latencyExecute['99.5'], hosts, false)}</td>
                     <td className="result"><span className="green">{addCommas(row.rollingCountSuccess)}</span></td>
-                    <td className="result"><span className="blue">{addCommas(row.rollingCountShortCircuited)}</span></td>
-                    <td className="result"><span className="lightSeaGreen">{addCommas(row.rollingCountBadRequests)}</span></td>
                     <td className="result">
-                        <span className={row.rollingCountTimeout>0?"underline gold":"gold"}>{addCommas(row.rollingCountTimeout)}</span>
+                        <span className={row.rollingCountShortCircuited>0?"fail":"blue"}>
+                            {addCommas(row.rollingCountShortCircuited)}
+                        </span>
                     </td>
                     <td className="result">
-                        <span className={row.rollingCountThreadPoolRejected>0?"underline purple":"purple"}>
+                        <span className={row.rollingCountBadRequests>0?"fail":"lightSeaGreen"}>
+                            {addCommas(row.rollingCountBadRequests)}
+                        </span>
+                    </td>
+                    <td className="result">
+                        <span className={row.rollingCountTimeout>0?"fail":"gold"}>{addCommas(row.rollingCountTimeout)}</span>
+                    </td>
+                    <td className="result">
+                        <span className={row.rollingCountThreadPoolRejected>0?"fail":"purple"}>
                             {addCommas(row.rollingCountThreadPoolRejected)}
                         </span>
                     </td>
                     <td className="result">
-                        <span className={row.rollingCountFailure>0?"underline red":"red"}>
+                        <span className={row.rollingCountFailure>0?"fail":"red"}>
                             {addCommas(row.rollingCountFailure)}
                         </span>
                     </td>
                     <td className="result">
-                        <span className={row.isCircuitBreakerOpen?'fail':'ok'}>
+                        <span className={row.isCircuitBreakerOpen?'fail':'green'}>
                             {row.isCircuitBreakerOpen?'open':'closed'}
                         </span>
                     </td>
@@ -161,7 +211,6 @@ let CommandTable = React.createClass({
                     <td className="result">{row.pool?row.pool.currentActiveCount:0}</td>
                     <td className="result">{addCommas(row.pool?row.pool.rollingMaxActiveThreads:0)}</td>
                     <td className="result">{row.pool?row.pool.currentQueueSize:0}</td>
-                    <td className="result">{addCommas(row.pool?row.pool.rollingCountThreadsExecuted:0)}</td>
                     <td className="result">{row.pool?row.pool.currentPoolSize:0}</td>
                     <td className="result">{addCommas(row.pool?row.pool.propertyValue_queueSizeRejectionThreshold:0)}</td>
                 </tr>
@@ -193,34 +242,33 @@ let CommandTable = React.createClass({
                     </tr>
                     <tr>
                         <th className="result arch">&nbsp;</th>
-                        <th className="result arch">name</th>
-                        <th className="result arch">h</th>
-                        <th className="result arch">qps(c)</th>
-                        <th className="result arch">qps</th>
-                        <th className="result arch">err</th>
-                        <th className="result arch">m</th>
-                        <th className="result arch">50</th>
-                        <th className="result arch">90</th>
-                        <th className="result arch">95</th>
-                        <th className="result arch">99</th>
-                        <th className="result arch">99.5</th>
-                        <th className="result arch">suc</th>
-                        <th className="result arch">sc</th>
-                        <th className="result arch">bad</th>
-                        <th className="result arch">to</th>
-                        <th className="result arch">rej</th>
-                        <th className="result arch">fb</th>
-                        <th className="result arch">cb</th>
+                        <th onClick={this.handleSorting('name')} className="result arch">name</th>
+                        <th data-balloon="Reporting Hosts" className="result arch">h</th>
+                        <th onClick={this.handleSorting('ratePerSecond')} data-balloon="Total Request Rate per Second for Cluster" className="result arch">qps(c)</th>
+                        <th onClick={this.handleSorting('ratePerSecond')} data-balloon="Total Request Rate per Second per Reporting Host" className="result arch">qps</th>
+                        <th onClick={this.handleSorting('errorPercentage')} data-balloon="Error Percentage [Timed-out + Threadpool Rejected + Failure / Total]" className="result arch">err</th>
+                        <th onClick={this.handleSorting('latencyExecute_mean')} data-balloon="Mean" className="result arch">m</th>
+                        <th onClick={this.handleSorting('latencyExecute','50')} className="result arch">50</th>
+                        <th onClick={this.handleSorting('latencyExecute','90')} className="result arch">90</th>
+                        <th onClick={this.handleSorting('latencyExecute','95')} className="result arch">95</th>
+                        <th onClick={this.handleSorting('latencyExecute','99')} className="result arch">99</th>
+                        <th onClick={this.handleSorting('latencyExecute','99.5')} className="result arch">99.5</th>
+                        <th onClick={this.handleSorting('rollingCountSuccess')} data-balloon="Successful Request Count" className="result arch">succ</th>
+                        <th onClick={this.handleSorting('rollingCountShortCircuited')} data-balloon="Short-circuited Request Count" className="result arch">sc</th>
+                        <th onClick={this.handleSorting('rollingCountBadRequests')} data-balloon="Bad Request Count" className="result arch">bad</th>
+                        <th onClick={this.handleSorting('rollingCountTimeout')} data-balloon="Timed-out Request Count" className="result arch">to</th>
+                        <th onClick={this.handleSorting('rollingCountThreadPoolRejected')} data-balloon="Rejected Request Count" className="result arch">rej</th>
+                        <th onClick={this.handleSorting('rollingCountFailure')} data-balloon="Failure Request Count" className="result arch">fa</th>
+                        <th onClick={this.handleSorting('isCircuitBreakerOpen')} data-balloon="Circuit Status" className="result arch">circuit</th>
 
-                        <th className="result arch">pool</th>
-                        <th className="result arch">qps(c)</th>
-                        <th className="result arch">qps</th>
-                        <th className="result arch">act</th>
-                        <th className="result arch">mact</th>
-                        <th className="result arch">qd</th>
-                        <th className="result arch">exe</th>
-                        <th className="result arch">ps</th>
-                        <th className="result arch">qs</th>
+                        <th onClick={this.handleSorting('threadPool')} data-balloon="Thread Pool" className="result arch">pool</th>
+                        <th onClick={this.handleSorting('pool','ratePerSecond')} data-balloon="Total Execution Rate per Second for Cluster" className="result arch">qps(c)</th>
+                        <th onClick={this.handleSorting('pool','ratePerSecondPerHost')} data-balloon="Total Execution Rate per Second per Reporting Host" className="result arch">qps</th>
+                        <th onClick={this.handleSorting('pool','currentActiveCount')} data-balloon="Active" className="result arch">act</th>
+                        <th onClick={this.handleSorting('pool','rollingMaxActiveThreads')} data-balloon="Max Active" className="result arch">mact</th>
+                        <th onClick={this.handleSorting('pool','currentQueueSize')} data-balloon="Queued - CurrentQueueSize" className="result arch">qd</th>
+                        <th onClick={this.handleSorting('pool','currentPoolSize')} data-balloon="Pool Size" className="result arch">ps</th>
+                        <th onClick={this.handleSorting('pool','propertyValue_queueSizeRejectionThreshold')} data-balloon="Queue Size - QueueSizeRejectionThreshold" className="result arch">qs</th>
                     </tr>
                     {rows}
                     </tbody>

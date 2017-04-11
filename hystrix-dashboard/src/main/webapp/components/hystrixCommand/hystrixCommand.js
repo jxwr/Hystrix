@@ -115,7 +115,9 @@
 		function convertAllAvg(data) {
 			convertAvg(data, "errorPercentage", true);
 			convertAvg(data, "latencyExecute_mean", false);
-        }
+
+			convertAvg(data, "propertyValue_metricsRollingStatisticalWindowInMilliseconds", false);
+		}
 		
 		function convertAvg(data, key, decimal) {
 			if (decimal) {
