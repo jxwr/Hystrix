@@ -9,6 +9,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +34,7 @@ public class StreamCRUDServlet extends HttpServlet {
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("application/json");
+        response.setContentType("application/json; charset=UTF-8");
 
         String action = request.getParameter("action");
         Connection conn = getConnection();
@@ -125,6 +127,7 @@ public class StreamCRUDServlet extends HttpServlet {
                 while (rs.next()) {
                     int id = rs.getInt("id");
                     String org = rs.getString("org");
+
                     String service = rs.getString("service");
                     String stream = rs.getString("stream");
                     int delay = rs.getInt("delay");
@@ -167,6 +170,7 @@ public class StreamCRUDServlet extends HttpServlet {
         Resp resp = new Resp(code, object);
 
         String json = gson.toJson(resp);
+        log.info("response=" + json);
         response.getOutputStream().write(json.getBytes());
     }
 

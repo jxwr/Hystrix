@@ -20,7 +20,7 @@ let CommandTable = React.createClass({
         this.source = new EventSource(proxyStream);
         this.source.addEventListener('message', this.onMessage, false);
 
-        this.sortfn = function(msg) { return msg.name; };
+        this.sortfn = (msg) => { return msg.name; };
         this.desc = false;
         this.lastSortingKey = '';
 
@@ -278,20 +278,158 @@ let CommandTable = React.createClass({
     }
 });
 
-let tables = streams.map((s, i) => {
-    let origin;
-    if(s != undefined) {
-        origin = s.stream;
+let StreamsTable = React.createClass({
+    getInitialState: function() {
+        this.refetch();
+        this.defParams = {
+            org: '',
+            service: '',
+            stream: '',
+            delay: 100
+        };
+        return {rows: [], params: this.defParams};
+    },
 
-        if(s.delay) {
-            origin = origin + "&delay=" + s.delay;
-        }
+    refetch: function() {
+        fetch('../streams?action=read').then((raw) => {
+            return raw.json();
+        }).then((resp) => {
+            if (resp.code == 0) {
+                this.setState({
+                    rows: _.sortBy(resp.data, 'org'),
+                    params: this.state.params
+                });
+            }
+        });
+    },
+
+    onAdd: function() {
+        let params = this.state.params;
+        let args = '&org=' + encodeURIComponent(params.org) +
+            '&service=' + encodeURIComponent(params.service) +
+            '&stream=' + encodeURIComponent(params.stream) +
+            '&delay=' + params.delay;
+
+        fetch('../streams?action=create' + args).then((raw) => {
+            return raw.json();
+        }).then((resp) => {
+            if (resp.code == 0) {
+                this.refetch();
+            } else {
+                alert(resp.data);
+            }
+        });
+    },
+
+    onChange: function(e) {
+        this.state.params[e.target.name] = e.target.value;
+        this.setState({params: this.state.params});
+    },
+
+    onDelete: function(e) {
+        let id = e.target.name;
+
+        fetch('../streams?action=delete&id='+id).then((raw) => {
+            return raw.json();
+        }).then((resp) => {
+            if (resp.code == 0) {
+                this.refetch();
+            } else {
+                alert(resp.data);
+            }
+        });
+    },
+
+    render: function() {
+        let rows = this.state.rows.map((row) => {
+            let args = JSON.stringify([{
+                auth: '',
+                delay: row.delay,
+                name: row.service,
+                stream: row.stream
+            }]);
+            return (
+                <tr key={row.id.toString()}>
+                    <td className="result">{row.id}</td>
+                    <td className="result">{row.org}</td>
+                    <td className="result service">{row.service}</td>
+                    <td className="result stream">{row.stream}</td>
+                    <td className="result">{row.delay}</td>
+                    {this.props.standalone && <td className="result"><input name={row.id} type="submit" value="del" onClick={this.onDelete}/></td>}
+                    <td className="result">
+                        <a href={'../monitor/table.jsp?streams='+encodeURIComponent(args)}>show</a>&nbsp;
+                        <a href={'../monitor/monitor.html?streams='+encodeURIComponent(args)}>graph</a>
+                    </td>
+                </tr>
+            );
+        });
+        return (
+            <div>
+                {this.props.standalone &&
+                <nav className="dashboards">
+                    <a href="../monitor/table.jsp">dashboard</a>
+                </nav>}
+                <center>
+                    <table className="build streams" style={{width: '98%'}}>
+                        <thead>
+                        <tr>
+                            <th className="result">id</th>
+                            <th className="result">org</th>
+                            <th className="result service">service</th>
+                            <th className="result stream">stream(url)</th>
+                            <th className="result">delay(ms)</th>
+                            {this.props.standalone && <th className="result">action</th>}
+                            <th className="result">link</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {this.props.standalone &&
+                        <tr>
+                            <th className="result"></th>
+                            <th className="result"><input type="text" name="org" value={this.state.params.org} onChange={this.onChange}/></th>
+                            <th className="result service"><input type="text" name="service" value={this.state.params.service} onChange={this.onChange}/></th>
+                            <th className="result stream"><input className="stream" type="text" name="stream" value={this.state.params.stream} onChange={this.onChange}/></th>
+                            <th className="result"><input type="text" name="delay" value={this.state.params.delay} onChange={this.onChange}/></th>
+                            <th className="result"><input type="submit" value="add" onClick={this.onAdd}/></th>
+                            <th className="result">&nbsp;</th>
+                        </tr>}
+                        {rows}
+                        </tbody>
+                    </table>
+                </center>
+            </div>
+        );
     }
-    return <CommandTable key={origin} origin={origin}/>;
 });
 
-ReactDOM.render(
-    <div>{tables}</div>,
-    document.getElementById('page')
-);
+if (document.getElementById("table_page") != null) {
+    let tables = streams.map((s, i) => {
+        let origin;
+        if (s != undefined) {
+            origin = s.stream;
 
+            if (s.delay) {
+                origin = origin + "&delay=" + s.delay;
+            }
+        }
+        return <CommandTable key={origin} origin={origin}/>;
+    });
+
+    ReactDOM.render(
+        <div>
+            <nav className="dashboards">
+                <a href="../monitor/streams.jsp">Streams</a>
+            </nav>
+            <StreamsTable standalone={false}/>
+            {tables}
+        </div>,
+        document.getElementById('table_page')
+    );
+}
+
+if (document.getElementById("streams_page") != null) {
+    ReactDOM.render(
+        <StreamsTable standalone={true}/>,
+        document.getElementById('streams_page')
+    );
+}

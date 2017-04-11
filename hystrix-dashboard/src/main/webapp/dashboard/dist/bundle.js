@@ -571,23 +571,273 @@ var CommandTable = _react2.default.createClass({
     }
 });
 
-var tables = streams.map(function (s, i) {
-    var origin = void 0;
-    if (s != undefined) {
-        origin = s.stream;
+var StreamsTable = _react2.default.createClass({
+    displayName: 'StreamsTable',
 
-        if (s.delay) {
-            origin = origin + "&delay=" + s.delay;
-        }
+    getInitialState: function getInitialState() {
+        this.refetch();
+        this.defParams = {
+            org: '',
+            service: '',
+            stream: '',
+            delay: 100
+        };
+        return { rows: [], params: this.defParams };
+    },
+
+    refetch: function refetch() {
+        var _this2 = this;
+
+        fetch('../streams?action=read').then(function (raw) {
+            return raw.json();
+        }).then(function (resp) {
+            if (resp.code == 0) {
+                _this2.setState({
+                    rows: _.sortBy(resp.data, 'org'),
+                    params: _this2.state.params
+                });
+            }
+        });
+    },
+
+    onAdd: function onAdd() {
+        var _this3 = this;
+
+        var params = this.state.params;
+        var args = '&org=' + encodeURIComponent(params.org) + '&service=' + encodeURIComponent(params.service) + '&stream=' + encodeURIComponent(params.stream) + '&delay=' + params.delay;
+
+        fetch('../streams?action=create' + args).then(function (raw) {
+            return raw.json();
+        }).then(function (resp) {
+            if (resp.code == 0) {
+                _this3.refetch();
+            } else {
+                alert(resp.data);
+            }
+        });
+    },
+
+    onChange: function onChange(e) {
+        this.state.params[e.target.name] = e.target.value;
+        this.setState({ params: this.state.params });
+    },
+
+    onDelete: function onDelete(e) {
+        var _this4 = this;
+
+        var id = e.target.name;
+
+        fetch('../streams?action=delete&id=' + id).then(function (raw) {
+            return raw.json();
+        }).then(function (resp) {
+            if (resp.code == 0) {
+                _this4.refetch();
+            } else {
+                alert(resp.data);
+            }
+        });
+    },
+
+    render: function render() {
+        var _this5 = this;
+
+        var rows = this.state.rows.map(function (row) {
+            var args = JSON.stringify([{
+                auth: '',
+                delay: row.delay,
+                name: row.service,
+                stream: row.stream
+            }]);
+            return _react2.default.createElement(
+                'tr',
+                { key: row.id.toString() },
+                _react2.default.createElement(
+                    'td',
+                    { className: 'result' },
+                    row.id
+                ),
+                _react2.default.createElement(
+                    'td',
+                    { className: 'result' },
+                    row.org
+                ),
+                _react2.default.createElement(
+                    'td',
+                    { className: 'result service' },
+                    row.service
+                ),
+                _react2.default.createElement(
+                    'td',
+                    { className: 'result stream' },
+                    row.stream
+                ),
+                _react2.default.createElement(
+                    'td',
+                    { className: 'result' },
+                    row.delay
+                ),
+                _this5.props.standalone && _react2.default.createElement(
+                    'td',
+                    { className: 'result' },
+                    _react2.default.createElement('input', { name: row.id, type: 'submit', value: 'del', onClick: _this5.onDelete })
+                ),
+                _react2.default.createElement(
+                    'td',
+                    { className: 'result' },
+                    _react2.default.createElement(
+                        'a',
+                        { href: '../monitor/table.jsp?streams=' + encodeURIComponent(args) },
+                        'show'
+                    ),
+                    '\xA0',
+                    _react2.default.createElement(
+                        'a',
+                        { href: '../monitor/monitor.html?streams=' + encodeURIComponent(args) },
+                        'graph'
+                    )
+                )
+            );
+        });
+        return _react2.default.createElement(
+            'div',
+            null,
+            this.props.standalone && _react2.default.createElement(
+                'nav',
+                { className: 'dashboards' },
+                _react2.default.createElement(
+                    'a',
+                    { href: '../monitor/table.jsp' },
+                    'dashboard'
+                )
+            ),
+            _react2.default.createElement(
+                'center',
+                null,
+                _react2.default.createElement(
+                    'table',
+                    { className: 'build streams', style: { width: '98%' } },
+                    _react2.default.createElement(
+                        'thead',
+                        null,
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                'id'
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                'org'
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result service' },
+                                'service'
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result stream' },
+                                'stream(url)'
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                'delay(ms)'
+                            ),
+                            this.props.standalone && _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                'action'
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                'link'
+                            )
+                        )
+                    ),
+                    _react2.default.createElement(
+                        'tbody',
+                        null,
+                        this.props.standalone && _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement('th', { className: 'result' }),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                _react2.default.createElement('input', { type: 'text', name: 'org', value: this.state.params.org, onChange: this.onChange })
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result service' },
+                                _react2.default.createElement('input', { type: 'text', name: 'service', value: this.state.params.service, onChange: this.onChange })
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result stream' },
+                                _react2.default.createElement('input', { className: 'stream', type: 'text', name: 'stream', value: this.state.params.stream, onChange: this.onChange })
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                _react2.default.createElement('input', { type: 'text', name: 'delay', value: this.state.params.delay, onChange: this.onChange })
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                _react2.default.createElement('input', { type: 'submit', value: 'add', onClick: this.onAdd })
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                { className: 'result' },
+                                '\xA0'
+                            )
+                        ),
+                        rows
+                    )
+                )
+            )
+        );
     }
-    return _react2.default.createElement(CommandTable, { key: origin, origin: origin });
 });
 
-_reactDom2.default.render(_react2.default.createElement(
-    'div',
-    null,
-    tables
-), document.getElementById('page'));
+if (document.getElementById("table_page") != null) {
+    var tables = streams.map(function (s, i) {
+        var origin = void 0;
+        if (s != undefined) {
+            origin = s.stream;
+
+            if (s.delay) {
+                origin = origin + "&delay=" + s.delay;
+            }
+        }
+        return _react2.default.createElement(CommandTable, { key: origin, origin: origin });
+    });
+
+    _reactDom2.default.render(_react2.default.createElement(
+        'div',
+        null,
+        _react2.default.createElement(
+            'nav',
+            { className: 'dashboards' },
+            _react2.default.createElement(
+                'a',
+                { href: '../monitor/streams.jsp' },
+                'Streams'
+            )
+        ),
+        _react2.default.createElement(StreamsTable, { standalone: false }),
+        tables
+    ), document.getElementById('table_page'));
+}
+
+if (document.getElementById("streams_page") != null) {
+    _reactDom2.default.render(_react2.default.createElement(StreamsTable, { standalone: true }), document.getElementById('streams_page'));
+}
 
 },{"./util":180,"react":178,"react-dom":27,"underscore":179}],2:[function(require,module,exports){
 (function (process){
