@@ -6,6 +6,12 @@
     <link rel="stylesheet" href="https://build.golang.org/static/style.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/balloon-css/0.2.4/balloon.min.css">
     <style>
+        label {
+            padding: 0.5em;
+        }
+        table {
+            min-width:48%;
+        }
         .build .result {
             text-align: center;
             width: 1em;
@@ -23,7 +29,7 @@
             min-width: 600px;
         }
         .build .service {
-            min-width: 80px;
+            min-width: 100px;
         }
         table.streams {
             border: 1px solid #E0EBF5;

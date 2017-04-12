@@ -25,7 +25,10 @@ var streams = urlVars.streams ? JSON.parse(decodeURIComponent(urlVars.streams)) 
     stream: decodeURIComponent(urlVars.stream),
     delay: urlVars.delay,
     name: decodeURIComponent(urlVars.title),
-    auth: urlVars.authorization
+    auth: urlVars.authorization,
+    id: urlVars.id,
+    service: urlVars.service,
+    org: urlVars.org
 }] : [];
 
 var CommandTable = _react2.default.createClass({
@@ -37,7 +40,7 @@ var CommandTable = _react2.default.createClass({
         this.source.addEventListener('message', this.onMessage, false);
 
         this.sortfn = function (msg) {
-            return msg.name;
+            return msg.ratePerSecond;
         };
         this.desc = false;
         this.lastSortingKey = '';
@@ -102,9 +105,20 @@ var CommandTable = _react2.default.createClass({
 
     updateRows: function updateRows() {
         var now = Date.now();
-        var rows = _.sortBy(this.rows, this.sortfn);
-        if (!this.desc) {
-            rows = rows.reverse();
+        var rows = void 0;
+
+        if (!this.props.sortByErrorThenVolume) {
+            rows = _.sortBy(this.rows, this.sortfn);
+            if (!this.desc) {
+                rows = rows.reverse();
+            }
+        } else {
+            rows = _.clone(this.rows).sort(function (a, b) {
+                return parseFloat(b.errorPercentage) - parseFloat(a.errorPercentage) || parseFloat(b.ratePerSecond) - parseFloat(a.ratePerSecond);
+            });
+        }
+        if (this.props.showNum > 0) {
+            rows = rows.slice(0, this.props.showNum);
         }
         this.setState({ rows: rows });
         this.lastUpdateTime = now;
@@ -179,6 +193,8 @@ var CommandTable = _react2.default.createClass({
     },
 
     render: function render() {
+        var _this2 = this;
+
         var rows = this.state.rows.map(function (row, i) {
             var hosts = row.reportingHosts;
             return _react2.default.createElement(
@@ -312,42 +328,42 @@ var CommandTable = _react2.default.createClass({
                         row.isCircuitBreakerOpen ? 'open' : 'closed'
                     )
                 ),
-                _react2.default.createElement(
+                !_this2.props.simpleview && _react2.default.createElement(
                     'td',
                     { className: 'result' },
                     row.threadPool
                 ),
-                _react2.default.createElement(
+                !_this2.props.simpleview && _react2.default.createElement(
                     'td',
                     { className: 'result' },
                     row.pool ? (0, _util.addCommas)(row.pool.ratePerSecond) : 0
                 ),
-                _react2.default.createElement(
+                !_this2.props.simpleview && _react2.default.createElement(
                     'td',
                     { className: 'result' },
                     row.pool ? (0, _util.addCommas)(row.pool.ratePerSecondPerHost) : 0
                 ),
-                _react2.default.createElement(
+                !_this2.props.simpleview && _react2.default.createElement(
                     'td',
                     { className: 'result' },
                     row.pool ? row.pool.currentActiveCount : 0
                 ),
-                _react2.default.createElement(
+                !_this2.props.simpleview && _react2.default.createElement(
                     'td',
                     { className: 'result' },
                     (0, _util.addCommas)(row.pool ? row.pool.rollingMaxActiveThreads : 0)
                 ),
-                _react2.default.createElement(
+                !_this2.props.simpleview && _react2.default.createElement(
                     'td',
                     { className: 'result' },
                     row.pool ? row.pool.currentQueueSize : 0
                 ),
-                _react2.default.createElement(
+                !_this2.props.simpleview && _react2.default.createElement(
                     'td',
                     { className: 'result' },
                     row.pool ? row.pool.currentPoolSize : 0
                 ),
-                _react2.default.createElement(
+                !_this2.props.simpleview && _react2.default.createElement(
                     'td',
                     { className: 'result' },
                     (0, _util.addCommas)(row.pool ? row.pool.propertyValue_queueSizeRejectionThreshold : 0)
@@ -358,7 +374,7 @@ var CommandTable = _react2.default.createClass({
         return _react2.default.createElement(
             'div',
             null,
-            _react2.default.createElement(
+            !this.props.simpleview && _react2.default.createElement(
                 'h2',
                 null,
                 _react2.default.createElement(
@@ -369,14 +385,14 @@ var CommandTable = _react2.default.createClass({
             ),
             _react2.default.createElement(
                 'table',
-                { className: 'build' },
+                { className: 'build', style: { float: this.props.simpleview ? 'left' : 'none' } },
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '3' }),
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '6' }),
-                _react2.default.createElement('colgroup', { className: 'col-result', span: '6' }),
-                _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
+                !this.props.simpleview && _react2.default.createElement('colgroup', { className: 'col-result', span: '6' }),
+                !this.props.simpleview && _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
                 _react2.default.createElement(
                     'tbody',
                     null,
@@ -392,7 +408,7 @@ var CommandTable = _react2.default.createClass({
                         _react2.default.createElement(
                             'th',
                             { colSpan: '1' },
-                            'command'
+                            this.props.simpleview ? '[' + this.props.streamInfo.org + '] ' + this.props.streamInfo.service : 'command'
                         ),
                         _react2.default.createElement(
                             'th',
@@ -419,7 +435,7 @@ var CommandTable = _react2.default.createClass({
                             null,
                             '\xA0'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { colSpan: '9' },
                             'pool'
@@ -523,42 +539,42 @@ var CommandTable = _react2.default.createClass({
                             { onClick: this.handleSorting('isCircuitBreakerOpen'), 'data-balloon': 'Circuit Status', className: 'result arch' },
                             'circuit'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { onClick: this.handleSorting('threadPool'), 'data-balloon': 'Thread Pool', className: 'result arch' },
                             'pool'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { onClick: this.handleSorting('pool', 'ratePerSecond'), 'data-balloon': 'Total Execution Rate per Second for Cluster', className: 'result arch' },
                             'qps(c)'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { onClick: this.handleSorting('pool', 'ratePerSecondPerHost'), 'data-balloon': 'Total Execution Rate per Second per Reporting Host', className: 'result arch' },
                             'qps'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { onClick: this.handleSorting('pool', 'currentActiveCount'), 'data-balloon': 'Active', className: 'result arch' },
                             'act'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { onClick: this.handleSorting('pool', 'rollingMaxActiveThreads'), 'data-balloon': 'Max Active', className: 'result arch' },
                             'mact'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { onClick: this.handleSorting('pool', 'currentQueueSize'), 'data-balloon': 'Queued - CurrentQueueSize', className: 'result arch' },
                             'qd'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { onClick: this.handleSorting('pool', 'currentPoolSize'), 'data-balloon': 'Pool Size', className: 'result arch' },
                             'ps'
                         ),
-                        _react2.default.createElement(
+                        !this.props.simpleview && _react2.default.createElement(
                             'th',
                             { onClick: this.handleSorting('pool', 'propertyValue_queueSizeRejectionThreshold'), 'data-balloon': 'Queue Size - QueueSizeRejectionThreshold', className: 'result arch' },
                             'qs'
@@ -580,28 +596,38 @@ var StreamsTable = _react2.default.createClass({
             org: '',
             service: '',
             stream: '',
-            delay: 100
+            delay: 1000
         };
         return { rows: [], params: this.defParams };
     },
 
     refetch: function refetch() {
-        var _this2 = this;
+        var _this3 = this;
 
         fetch('../streams?action=read').then(function (raw) {
             return raw.json();
         }).then(function (resp) {
             if (resp.code == 0) {
-                _this2.setState({
+                resp.data.map(function (row) {
+                    var checked = false;
+                    for (var i = 0; i < streams.length; i++) {
+                        if (streams[i].id == row.id) {
+                            checked = true;
+                        }
+                    }
+                    row.checked = checked;
+                });
+
+                _this3.setState({
                     rows: _.sortBy(resp.data, 'org'),
-                    params: _this2.state.params
+                    params: _this3.state.params
                 });
             }
         });
     },
 
     onAdd: function onAdd() {
-        var _this3 = this;
+        var _this4 = this;
 
         var params = this.state.params;
         var args = '&org=' + encodeURIComponent(params.org) + '&service=' + encodeURIComponent(params.service) + '&stream=' + encodeURIComponent(params.stream) + '&delay=' + params.delay;
@@ -610,7 +636,7 @@ var StreamsTable = _react2.default.createClass({
             return raw.json();
         }).then(function (resp) {
             if (resp.code == 0) {
-                _this3.refetch();
+                _this4.refetch();
             } else {
                 alert(resp.data);
             }
@@ -623,7 +649,7 @@ var StreamsTable = _react2.default.createClass({
     },
 
     onDelete: function onDelete(e) {
-        var _this4 = this;
+        var _this5 = this;
 
         var id = e.target.name;
 
@@ -631,22 +657,42 @@ var StreamsTable = _react2.default.createClass({
             return raw.json();
         }).then(function (resp) {
             if (resp.code == 0) {
-                _this4.refetch();
+                _this5.refetch();
             } else {
                 alert(resp.data);
             }
         });
     },
 
+    onStreamCheckbox: function onStreamCheckbox(e) {
+        var target = e.target;
+        var checked = target.checked;
+        var id = target.name;
+
+        var rows = this.state.rows;
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].id == id) {
+                rows[i].checked = checked;
+            }
+        }
+        this.setState({ rows: rows });
+
+        var args = JSON.stringify(rows.filter(function (row) {
+            return row.checked;
+        }));
+        location = '../monitor/table.jsp?streams=' + encodeURIComponent(args);
+    },
+
     render: function render() {
-        var _this5 = this;
+        var _this6 = this;
 
         var rows = this.state.rows.map(function (row) {
             var args = JSON.stringify([{
                 auth: '',
                 delay: row.delay,
                 name: row.service,
-                stream: row.stream
+                stream: row.stream,
+                id: row.id
             }]);
             return _react2.default.createElement(
                 'tr',
@@ -654,7 +700,7 @@ var StreamsTable = _react2.default.createClass({
                 _react2.default.createElement(
                     'td',
                     { className: 'result' },
-                    row.id
+                    _this6.props.standalone ? row.id : _react2.default.createElement('input', { type: 'checkbox', name: row.id, onChange: _this6.onStreamCheckbox, checked: row.checked })
                 ),
                 _react2.default.createElement(
                     'td',
@@ -676,10 +722,10 @@ var StreamsTable = _react2.default.createClass({
                     { className: 'result' },
                     row.delay
                 ),
-                _this5.props.standalone && _react2.default.createElement(
+                _this6.props.standalone && _react2.default.createElement(
                     'td',
                     { className: 'result' },
-                    _react2.default.createElement('input', { name: row.id, type: 'submit', value: 'del', onClick: _this5.onDelete })
+                    _react2.default.createElement('input', { name: row.id, type: 'submit', value: 'del', onClick: _this6.onDelete })
                 ),
                 _react2.default.createElement(
                     'td',
@@ -725,7 +771,7 @@ var StreamsTable = _react2.default.createClass({
                             _react2.default.createElement(
                                 'th',
                                 { className: 'result' },
-                                'id'
+                                '\xA0'
                             ),
                             _react2.default.createElement(
                                 'th',
@@ -805,34 +851,110 @@ var StreamsTable = _react2.default.createClass({
     }
 });
 
-if (document.getElementById("table_page") != null) {
-    var tables = streams.map(function (s, i) {
-        var origin = void 0;
-        if (s != undefined) {
-            origin = s.stream;
+var TableView = _react2.default.createClass({
+    displayName: 'TableView',
 
-            if (s.delay) {
-                origin = origin + "&delay=" + s.delay;
+    getInitialState: function getInitialState() {
+        return { simpleview: true, showNum: 5, sortByErrorThenVolume: false };
+    },
+
+    onCheckSimpleView: function onCheckSimpleView(e) {
+        this.setState({ simpleview: e.target.checked });
+    },
+
+    onShowNumChange: function onShowNumChange(e) {
+        var showNum = parseInt(e.target.value);
+        this.setState({ showNum: showNum });
+    },
+
+    onSortByErrorThenVolume: function onSortByErrorThenVolume(e) {
+        this.setState({ sortByErrorThenVolume: e.target.checked });
+    },
+
+    render: function render() {
+        var _this7 = this;
+
+        var tables = streams.map(function (s, i) {
+            var origin = void 0;
+            if (s != undefined) {
+                origin = s.stream;
+
+                if (s.delay) {
+                    origin = origin + "&delay=" + s.delay;
+                }
             }
-        }
-        return _react2.default.createElement(CommandTable, { key: origin, origin: origin });
-    });
-
-    _reactDom2.default.render(_react2.default.createElement(
-        'div',
-        null,
-        _react2.default.createElement(
-            'nav',
-            { className: 'dashboards' },
+            return _react2.default.createElement(CommandTable, { key: origin,
+                origin: origin,
+                streamInfo: s,
+                simpleview: _this7.state.simpleview,
+                sortByErrorThenVolume: _this7.state.sortByErrorThenVolume,
+                showNum: _this7.state.showNum });
+        });
+        return _react2.default.createElement(
+            'div',
+            null,
             _react2.default.createElement(
-                'a',
-                { href: '../monitor/streams.jsp' },
-                'Streams'
-            )
-        ),
-        _react2.default.createElement(StreamsTable, { standalone: false }),
-        tables
-    ), document.getElementById('table_page'));
+                'nav',
+                { className: 'dashboards' },
+                _react2.default.createElement(
+                    'a',
+                    { href: '../monitor/streams.jsp' },
+                    'Streams'
+                ),
+                _react2.default.createElement(
+                    'label',
+                    null,
+                    _react2.default.createElement(
+                        'select',
+                        { value: this.state.showNum, onChange: this.onShowNumChange },
+                        _react2.default.createElement(
+                            'option',
+                            { value: '5' },
+                            'top 5'
+                        ),
+                        _react2.default.createElement(
+                            'option',
+                            { value: '10' },
+                            'top 10'
+                        ),
+                        _react2.default.createElement(
+                            'option',
+                            { value: '15' },
+                            'top 15'
+                        ),
+                        _react2.default.createElement(
+                            'option',
+                            { value: '20' },
+                            'top 20'
+                        ),
+                        _react2.default.createElement(
+                            'option',
+                            { value: '-1' },
+                            'all'
+                        )
+                    )
+                ),
+                _react2.default.createElement(
+                    'label',
+                    null,
+                    _react2.default.createElement('input', { type: 'checkbox', onChange: this.onCheckSimpleView, checked: this.state.simpleview }),
+                    'Simple View'
+                ),
+                _react2.default.createElement(
+                    'label',
+                    null,
+                    _react2.default.createElement('input', { type: 'checkbox', onChange: this.onSortByErrorThenVolume, checked: this.state.sortByErrorThenVolume }),
+                    'Sort: Error then Volume'
+                )
+            ),
+            _react2.default.createElement(StreamsTable, { standalone: false }),
+            tables
+        );
+    }
+});
+
+if (document.getElementById("table_page") != null) {
+    _reactDom2.default.render(_react2.default.createElement(TableView, null), document.getElementById('table_page'));
 }
 
 if (document.getElementById("streams_page") != null) {

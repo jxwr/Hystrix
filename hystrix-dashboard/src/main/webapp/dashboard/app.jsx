@@ -11,7 +11,10 @@ const streams = urlVars.streams ? JSON.parse(decodeURIComponent(urlVars.streams)
                   stream: decodeURIComponent(urlVars.stream),
                   delay: urlVars.delay,
                   name: decodeURIComponent(urlVars.title),
-                  auth: urlVars.authorization
+                  auth: urlVars.authorization,
+                  id: urlVars.id,
+                  service: urlVars.service,
+                  org: urlVars.org
               }] : [];
 
 let CommandTable = React.createClass({
@@ -20,7 +23,7 @@ let CommandTable = React.createClass({
         this.source = new EventSource(proxyStream);
         this.source.addEventListener('message', this.onMessage, false);
 
-        this.sortfn = (msg) => { return msg.name; };
+        this.sortfn = (msg) => { return msg.ratePerSecond; };
         this.desc = false;
         this.lastSortingKey = '';
 
@@ -84,9 +87,21 @@ let CommandTable = React.createClass({
 
     updateRows: function() {
         let now = Date.now();
-        let rows = _.sortBy(this.rows, this.sortfn);
-        if (!this.desc) {
-            rows = rows.reverse();
+        let rows;
+
+        if (!this.props.sortByErrorThenVolume) {
+            rows = _.sortBy(this.rows, this.sortfn);
+            if (!this.desc) {
+                rows = rows.reverse();
+            }
+        } else {
+            rows = _.clone(this.rows).sort((a, b) => {
+                return (parseFloat(b.errorPercentage) - parseFloat(a.errorPercentage)) ||
+                    (parseFloat(b.ratePerSecond) - parseFloat(a.ratePerSecond));
+            });
+        }
+        if (this.props.showNum > 0) {
+            rows = rows.slice(0, this.props.showNum);
         }
         this.setState({rows: rows});
         this.lastUpdateTime = now;
@@ -205,40 +220,40 @@ let CommandTable = React.createClass({
                         </span>
                     </td>
 
-                    <td className="result">{row.threadPool}</td>
-                    <td className="result">{row.pool?addCommas(row.pool.ratePerSecond):0}</td>
-                    <td className="result">{row.pool?addCommas(row.pool.ratePerSecondPerHost):0}</td>
-                    <td className="result">{row.pool?row.pool.currentActiveCount:0}</td>
-                    <td className="result">{addCommas(row.pool?row.pool.rollingMaxActiveThreads:0)}</td>
-                    <td className="result">{row.pool?row.pool.currentQueueSize:0}</td>
-                    <td className="result">{row.pool?row.pool.currentPoolSize:0}</td>
-                    <td className="result">{addCommas(row.pool?row.pool.propertyValue_queueSizeRejectionThreshold:0)}</td>
+                    {!this.props.simpleview&&<td className="result">{row.threadPool}</td>}
+                    {!this.props.simpleview&&<td className="result">{row.pool?addCommas(row.pool.ratePerSecond):0}</td>}
+                    {!this.props.simpleview&&<td className="result">{row.pool?addCommas(row.pool.ratePerSecondPerHost):0}</td>}
+                    {!this.props.simpleview&&<td className="result">{row.pool?row.pool.currentActiveCount:0}</td>}
+                    {!this.props.simpleview&&<td className="result">{addCommas(row.pool?row.pool.rollingMaxActiveThreads:0)}</td>}
+                    {!this.props.simpleview&&<td className="result">{row.pool?row.pool.currentQueueSize:0}</td>}
+                    {!this.props.simpleview&&<td className="result">{row.pool?row.pool.currentPoolSize:0}</td>}
+                    {!this.props.simpleview&&<td className="result">{addCommas(row.pool?row.pool.propertyValue_queueSizeRejectionThreshold:0)}</td>}
                 </tr>
             );
         });
 
         return (
             <div>
-                <h2><small>{this.props.origin}</small></h2>
-                <table className="build">
+                {!this.props.simpleview&&<h2><small>{this.props.origin}</small></h2>}
+                <table className="build" style={{float:(this.props.simpleview?'left':'none')}}>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="3"></colgroup>
                     <colgroup className="col-result" span="6"></colgroup>
-                    <colgroup className="col-result" span="6"></colgroup>
-                    <colgroup className="col-result" span="1"></colgroup>
+                    {!this.props.simpleview&&<colgroup className="col-result" span="6"></colgroup>}
+                    {!this.props.simpleview&&<colgroup className="col-result" span="1"></colgroup>}
                     <tbody>
                     <tr></tr>
                     <tr>
                         <th>&nbsp;</th>
-                        <th colSpan="1">command</th>
+                        <th colSpan="1">{this.props.simpleview?('['+this.props.streamInfo.org+'] '+this.props.streamInfo.service):'command'}</th>
                         <th>&nbsp;</th>
                         <th colSpan="3">&nbsp;</th>
                         <th colSpan="6">latency</th>
                         <th colSpan="6">counter</th>
                         <th>&nbsp;</th>
-                        <th colSpan="9">pool</th>
+                        {!this.props.simpleview&&<th colSpan="9">pool</th>}
                     </tr>
                     <tr>
                         <th className="result arch">&nbsp;</th>
@@ -261,14 +276,14 @@ let CommandTable = React.createClass({
                         <th onClick={this.handleSorting('rollingCountFailure')} data-balloon="Failure Request Count" className="result arch">fa</th>
                         <th onClick={this.handleSorting('isCircuitBreakerOpen')} data-balloon="Circuit Status" className="result arch">circuit</th>
 
-                        <th onClick={this.handleSorting('threadPool')} data-balloon="Thread Pool" className="result arch">pool</th>
-                        <th onClick={this.handleSorting('pool','ratePerSecond')} data-balloon="Total Execution Rate per Second for Cluster" className="result arch">qps(c)</th>
-                        <th onClick={this.handleSorting('pool','ratePerSecondPerHost')} data-balloon="Total Execution Rate per Second per Reporting Host" className="result arch">qps</th>
-                        <th onClick={this.handleSorting('pool','currentActiveCount')} data-balloon="Active" className="result arch">act</th>
-                        <th onClick={this.handleSorting('pool','rollingMaxActiveThreads')} data-balloon="Max Active" className="result arch">mact</th>
-                        <th onClick={this.handleSorting('pool','currentQueueSize')} data-balloon="Queued - CurrentQueueSize" className="result arch">qd</th>
-                        <th onClick={this.handleSorting('pool','currentPoolSize')} data-balloon="Pool Size" className="result arch">ps</th>
-                        <th onClick={this.handleSorting('pool','propertyValue_queueSizeRejectionThreshold')} data-balloon="Queue Size - QueueSizeRejectionThreshold" className="result arch">qs</th>
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('threadPool')} data-balloon="Thread Pool" className="result arch">pool</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','ratePerSecond')} data-balloon="Total Execution Rate per Second for Cluster" className="result arch">qps(c)</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','ratePerSecondPerHost')} data-balloon="Total Execution Rate per Second per Reporting Host" className="result arch">qps</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentActiveCount')} data-balloon="Active" className="result arch">act</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','rollingMaxActiveThreads')} data-balloon="Max Active" className="result arch">mact</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentQueueSize')} data-balloon="Queued - CurrentQueueSize" className="result arch">qd</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentPoolSize')} data-balloon="Pool Size" className="result arch">ps</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','propertyValue_queueSizeRejectionThreshold')} data-balloon="Queue Size - QueueSizeRejectionThreshold" className="result arch">qs</th>}
                     </tr>
                     {rows}
                     </tbody>
@@ -285,7 +300,7 @@ let StreamsTable = React.createClass({
             org: '',
             service: '',
             stream: '',
-            delay: 100
+            delay: 1000
         };
         return {rows: [], params: this.defParams};
     },
@@ -295,6 +310,16 @@ let StreamsTable = React.createClass({
             return raw.json();
         }).then((resp) => {
             if (resp.code == 0) {
+                resp.data.map((row) => {
+                    let checked = false;
+                    for (var i = 0; i < streams.length; i++) {
+                        if (streams[i].id == row.id) {
+                            checked = true;
+                        }
+                    }
+                    row.checked = checked;
+                });
+
                 this.setState({
                     rows: _.sortBy(resp.data, 'org'),
                     params: this.state.params
@@ -340,17 +365,35 @@ let StreamsTable = React.createClass({
         });
     },
 
+    onStreamCheckbox: function(e) {
+        const target = e.target;
+        const checked = target.checked;
+        const id = target.name;
+
+        let rows = this.state.rows;
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].id == id) {
+                rows[i].checked = checked;
+            }
+        }
+        this.setState({rows: rows});
+
+        let args = JSON.stringify(rows.filter((row) => { return row.checked; }));
+        location = '../monitor/table.jsp?streams='+encodeURIComponent(args);
+    },
+
     render: function() {
         let rows = this.state.rows.map((row) => {
             let args = JSON.stringify([{
                 auth: '',
                 delay: row.delay,
                 name: row.service,
-                stream: row.stream
+                stream: row.stream,
+                id: row.id
             }]);
             return (
                 <tr key={row.id.toString()}>
-                    <td className="result">{row.id}</td>
+                    <td className="result">{this.props.standalone ? row.id : <input type="checkbox" name={row.id} onChange={this.onStreamCheckbox} checked={row.checked}/>}</td>
                     <td className="result">{row.org}</td>
                     <td className="result service">{row.service}</td>
                     <td className="result stream">{row.stream}</td>
@@ -373,7 +416,7 @@ let StreamsTable = React.createClass({
                     <table className="build streams" style={{width: '98%'}}>
                         <thead>
                         <tr>
-                            <th className="result">id</th>
+                            <th className="result">&nbsp;</th>
                             <th className="result">org</th>
                             <th className="result service">service</th>
                             <th className="result stream">stream(url)</th>
@@ -402,34 +445,78 @@ let StreamsTable = React.createClass({
     }
 });
 
-if (document.getElementById("table_page") != null) {
-    let tables = streams.map((s, i) => {
-        let origin;
-        if (s != undefined) {
-            origin = s.stream;
+let TableView = React.createClass({
+    getInitialState: function () {
+        return {simpleview: true, showNum: 5, sortByErrorThenVolume: false};
+    },
 
-            if (s.delay) {
-                origin = origin + "&delay=" + s.delay;
+    onCheckSimpleView: function(e) {
+        this.setState({simpleview: e.target.checked});
+    },
+
+    onShowNumChange: function(e) {
+        let showNum = parseInt(e.target.value);
+        this.setState({showNum: showNum});
+    },
+
+    onSortByErrorThenVolume: function(e) {
+        this.setState({sortByErrorThenVolume: e.target.checked});
+    },
+
+    render: function() {
+        let tables = streams.map((s, i) => {
+            let origin;
+            if (s != undefined) {
+                origin = s.stream;
+
+                if (s.delay) {
+                    origin = origin + "&delay=" + s.delay;
+                }
             }
-        }
-        return <CommandTable key={origin} origin={origin}/>;
-    });
-
-    ReactDOM.render(
-        <div>
+            return <CommandTable key={origin}
+                                 origin={origin}
+                                 streamInfo={s}
+                                 simpleview={this.state.simpleview}
+                                 sortByErrorThenVolume={this.state.sortByErrorThenVolume}
+                                 showNum={this.state.showNum} />;
+        });
+        return <div>
             <nav className="dashboards">
                 <a href="../monitor/streams.jsp">Streams</a>
+                <label>
+                    <select value={this.state.showNum} onChange={this.onShowNumChange}>
+                        <option value="5">top 5</option>
+                        <option value="10">top 10</option>
+                        <option value="15">top 15</option>
+                        <option value="20">top 20</option>
+                        <option value="-1">all</option>
+                    </select>
+                </label>
+                <label>
+                    <input type="checkbox" onChange={this.onCheckSimpleView} checked={this.state.simpleview}/>
+                    Simple View
+                </label>
+                <label>
+                    <input type="checkbox" onChange={this.onSortByErrorThenVolume} checked={this.state.sortByErrorThenVolume}/>
+                    Sort: Error then Volume
+                </label>
             </nav>
-            <StreamsTable standalone={false}/>
+            <StreamsTable standalone={false} />
             {tables}
-        </div>,
+        </div>;
+    }
+});
+
+if (document.getElementById("table_page") != null) {
+    ReactDOM.render(
+        <TableView />,
         document.getElementById('table_page')
     );
 }
 
 if (document.getElementById("streams_page") != null) {
     ReactDOM.render(
-        <StreamsTable standalone={true}/>,
+        <StreamsTable standalone={true} />,
         document.getElementById('streams_page')
     );
 }
