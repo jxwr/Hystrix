@@ -8,6 +8,7 @@ classes
 *.o
 *.so
 node_modules
+db
 
 # Packages #
 ############

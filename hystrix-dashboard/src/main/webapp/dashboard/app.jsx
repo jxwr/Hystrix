@@ -22,10 +22,11 @@ let CommandTable = React.createClass({
         let proxyStream = "../proxy.stream?origin=" + this.props.origin;
         this.source = new EventSource(proxyStream);
         this.source.addEventListener('message', this.onMessage, false);
+        this.source.addEventListener('error', (e)=>{console.log(e);}, false);
 
-        this.sortfn = (msg) => { return msg.ratePerSecond; };
+        this.sortfn = (msg) => { return msg.errorPercentage; };
         this.desc = false;
-        this.lastSortingKey = '';
+        this.lastSortingKey = 'errorPercentage';
 
         this.rows = [];
         this.commands = {};
@@ -89,7 +90,7 @@ let CommandTable = React.createClass({
         let now = Date.now();
         let rows;
 
-        if (!this.props.sortByErrorThenVolume) {
+        if (!this.props.sortByErrorThenVolume && !this.lastSortingKey.startsWith('errorPercentage')) {
             rows = _.sortBy(this.rows, this.sortfn);
             if (!this.desc) {
                 rows = rows.reverse();
@@ -108,40 +109,44 @@ let CommandTable = React.createClass({
     },
 
     onMessage: function(e) {
-        let msg = JSON.parse(e.data);
+        try {
+            let msg = JSON.parse(e.data);
 
-        if (msg && msg.type == 'HystrixCommand') {
-            this.convertCommandAllAvg(msg);
-            this.calcCommandRatePerSecond(msg);
+            if (msg && msg.type == 'HystrixCommand') {
+                this.convertCommandAllAvg(msg);
+                this.calcCommandRatePerSecond(msg);
 
-            if (!_.has(this.commands, msg.name)) {
-                let pos = this.rows.length;
-                this.rows.push(msg);
-                this.commands[msg.name] = {msg: msg, pos: pos};
-                this.commandsByPool[msg.threadPool] = {msg: msg, pos: pos};
+                if (!_.has(this.commands, msg.name)) {
+                    let pos = this.rows.length;
+                    this.rows.push(msg);
+                    this.commands[msg.name] = {msg: msg, pos: pos};
+                    this.commandsByPool[msg.threadPool] = {msg: msg, pos: pos};
+                }
+
+                let cmd = this.commands[msg.name];
+                msg.pool = this.rows[cmd.pos].pool;
+
+                this.rows[cmd.pos] = msg;
+                this.commands[msg.name].msg = msg;
+                this.commandsByPool[msg.threadPool].msg = msg;
+            } else if (msg && msg.type == 'HystrixThreadPool'){
+                this.converPoolAllAvg(msg);
+                this.calcPoolRatePerSecond(msg);
+
+                let poolMsg = msg;
+                let cmd = this.commandsByPool[poolMsg.name];
+
+                if (cmd) {
+                    assertEqual(poolMsg.name, cmd.msg.threadPool);
+                    cmd.msg.pool = poolMsg;
+                }
             }
 
-            let cmd = this.commands[msg.name];
-            msg.pool = this.rows[cmd.pos].pool;
-
-            this.rows[cmd.pos] = msg;
-            this.commands[msg.name].msg = msg;
-            this.commandsByPool[msg.threadPool].msg = msg;
-        } else if (msg && msg.type == 'HystrixThreadPool'){
-            this.converPoolAllAvg(msg);
-            this.calcPoolRatePerSecond(msg);
-
-            let poolMsg = msg;
-            let cmd = this.commandsByPool[poolMsg.name];
-
-            if (cmd) {
-                assertEqual(poolMsg.name, cmd.msg.threadPool);
-                cmd.msg.pool = poolMsg;
+            if (Date.now() - this.lastUpdateTime > 200) {
+                this.updateRows();
             }
-        }
-
-        if (Date.now() - this.lastUpdateTime > 200) {
-            this.updateRows();
+        } catch(e) {
+            console.log(e);
         }
     },
 
@@ -215,8 +220,10 @@ let CommandTable = React.createClass({
                         </span>
                     </td>
                     <td className="result">
-                        <span className={row.isCircuitBreakerOpen?'fail':'green'}>
-                            {row.isCircuitBreakerOpen?'open':'closed'}
+                        <span className={row.isCircuitBreakerOpen == false ?'green':'fail'}>
+                            {row.propertyValue_circuitBreakerForceClosed ? "closed(force)" :
+                                (row.propertyValue_circuitBreakerForceOpen ? "open(force)" :
+                                    row.isCircuitBreakerOpen.toString().replace("true", "open").replace("false", "closed"))}
                         </span>
                     </td>
 

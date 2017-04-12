@@ -38,12 +38,15 @@ var CommandTable = _react2.default.createClass({
         var proxyStream = "../proxy.stream?origin=" + this.props.origin;
         this.source = new EventSource(proxyStream);
         this.source.addEventListener('message', this.onMessage, false);
+        this.source.addEventListener('error', function (e) {
+            console.log(e);
+        }, false);
 
         this.sortfn = function (msg) {
-            return msg.ratePerSecond;
+            return msg.errorPercentage;
         };
         this.desc = false;
-        this.lastSortingKey = '';
+        this.lastSortingKey = 'errorPercentage';
 
         this.rows = [];
         this.commands = {};
@@ -107,7 +110,7 @@ var CommandTable = _react2.default.createClass({
         var now = Date.now();
         var rows = void 0;
 
-        if (!this.props.sortByErrorThenVolume) {
+        if (!this.props.sortByErrorThenVolume && !this.lastSortingKey.startsWith('errorPercentage')) {
             rows = _.sortBy(this.rows, this.sortfn);
             if (!this.desc) {
                 rows = rows.reverse();
@@ -125,40 +128,44 @@ var CommandTable = _react2.default.createClass({
     },
 
     onMessage: function onMessage(e) {
-        var msg = JSON.parse(e.data);
+        try {
+            var msg = JSON.parse(e.data);
 
-        if (msg && msg.type == 'HystrixCommand') {
-            this.convertCommandAllAvg(msg);
-            this.calcCommandRatePerSecond(msg);
+            if (msg && msg.type == 'HystrixCommand') {
+                this.convertCommandAllAvg(msg);
+                this.calcCommandRatePerSecond(msg);
 
-            if (!_.has(this.commands, msg.name)) {
-                var pos = this.rows.length;
-                this.rows.push(msg);
-                this.commands[msg.name] = { msg: msg, pos: pos };
-                this.commandsByPool[msg.threadPool] = { msg: msg, pos: pos };
+                if (!_.has(this.commands, msg.name)) {
+                    var pos = this.rows.length;
+                    this.rows.push(msg);
+                    this.commands[msg.name] = { msg: msg, pos: pos };
+                    this.commandsByPool[msg.threadPool] = { msg: msg, pos: pos };
+                }
+
+                var cmd = this.commands[msg.name];
+                msg.pool = this.rows[cmd.pos].pool;
+
+                this.rows[cmd.pos] = msg;
+                this.commands[msg.name].msg = msg;
+                this.commandsByPool[msg.threadPool].msg = msg;
+            } else if (msg && msg.type == 'HystrixThreadPool') {
+                this.converPoolAllAvg(msg);
+                this.calcPoolRatePerSecond(msg);
+
+                var poolMsg = msg;
+                var _cmd = this.commandsByPool[poolMsg.name];
+
+                if (_cmd) {
+                    (0, _util.assertEqual)(poolMsg.name, _cmd.msg.threadPool);
+                    _cmd.msg.pool = poolMsg;
+                }
             }
 
-            var cmd = this.commands[msg.name];
-            msg.pool = this.rows[cmd.pos].pool;
-
-            this.rows[cmd.pos] = msg;
-            this.commands[msg.name].msg = msg;
-            this.commandsByPool[msg.threadPool].msg = msg;
-        } else if (msg && msg.type == 'HystrixThreadPool') {
-            this.converPoolAllAvg(msg);
-            this.calcPoolRatePerSecond(msg);
-
-            var poolMsg = msg;
-            var _cmd = this.commandsByPool[poolMsg.name];
-
-            if (_cmd) {
-                (0, _util.assertEqual)(poolMsg.name, _cmd.msg.threadPool);
-                _cmd.msg.pool = poolMsg;
+            if (Date.now() - this.lastUpdateTime > 200) {
+                this.updateRows();
             }
-        }
-
-        if (Date.now() - this.lastUpdateTime > 200) {
-            this.updateRows();
+        } catch (e) {
+            console.log(e);
         }
     },
 
@@ -324,8 +331,8 @@ var CommandTable = _react2.default.createClass({
                     { className: 'result' },
                     _react2.default.createElement(
                         'span',
-                        { className: row.isCircuitBreakerOpen ? 'fail' : 'green' },
-                        row.isCircuitBreakerOpen ? 'open' : 'closed'
+                        { className: row.isCircuitBreakerOpen == false ? 'green' : 'fail' },
+                        row.propertyValue_circuitBreakerForceClosed ? "closed(force)" : row.propertyValue_circuitBreakerForceOpen ? "open(force)" : row.isCircuitBreakerOpen.toString().replace("true", "open").replace("false", "closed")
                     )
                 ),
                 !_this2.props.simpleview && _react2.default.createElement(
