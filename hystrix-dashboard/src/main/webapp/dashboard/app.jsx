@@ -457,16 +457,16 @@ let TableView = React.createClass({
         return {simpleview: true, showNum: 5, sortByErrorThenVolume: false};
     },
 
-    onCheckSimpleView: function(e) {
-        this.setState({simpleview: e.target.checked});
-    },
-
     onShowNumChange: function(e) {
         let showNum = parseInt(e.target.value);
         this.setState({showNum: showNum});
     },
 
-    onSortByErrorThenVolume: function(e) {
+    onCheckSimpleView: function(e) {
+        this.setState({simpleview: e.target.checked});
+    },
+
+    onCheckSortByErrorThenVolume: function(e) {
         this.setState({sortByErrorThenVolume: e.target.checked});
     },
 
@@ -504,7 +504,7 @@ let TableView = React.createClass({
                     Simple View
                 </label>
                 <label>
-                    <input type="checkbox" onChange={this.onSortByErrorThenVolume} checked={this.state.sortByErrorThenVolume}/>
+                    <input type="checkbox" onChange={this.onCheckSortByErrorThenVolume} checked={this.state.sortByErrorThenVolume}/>
                     Sort: Error then Volume
                 </label>
             </nav>

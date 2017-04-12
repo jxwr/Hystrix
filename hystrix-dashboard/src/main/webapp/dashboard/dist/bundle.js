@@ -865,16 +865,16 @@ var TableView = _react2.default.createClass({
         return { simpleview: true, showNum: 5, sortByErrorThenVolume: false };
     },
 
-    onCheckSimpleView: function onCheckSimpleView(e) {
-        this.setState({ simpleview: e.target.checked });
-    },
-
     onShowNumChange: function onShowNumChange(e) {
         var showNum = parseInt(e.target.value);
         this.setState({ showNum: showNum });
     },
 
-    onSortByErrorThenVolume: function onSortByErrorThenVolume(e) {
+    onCheckSimpleView: function onCheckSimpleView(e) {
+        this.setState({ simpleview: e.target.checked });
+    },
+
+    onCheckSortByErrorThenVolume: function onCheckSortByErrorThenVolume(e) {
         this.setState({ sortByErrorThenVolume: e.target.checked });
     },
 
@@ -950,7 +950,7 @@ var TableView = _react2.default.createClass({
                 _react2.default.createElement(
                     'label',
                     null,
-                    _react2.default.createElement('input', { type: 'checkbox', onChange: this.onSortByErrorThenVolume, checked: this.state.sortByErrorThenVolume }),
+                    _react2.default.createElement('input', { type: 'checkbox', onChange: this.onCheckSortByErrorThenVolume, checked: this.state.sortByErrorThenVolume }),
                     'Sort: Error then Volume'
                 )
             ),
