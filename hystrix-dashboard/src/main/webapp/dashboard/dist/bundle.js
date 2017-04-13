@@ -377,7 +377,7 @@ var CommandTable = _react2.default.createClass({
                 )
             );
         });
-
+        var title = '[' + this.props.streamInfo.org + '] ' + this.props.streamInfo.service + ' (' + this.props.origin + ')';
         return _react2.default.createElement(
             'div',
             null,
@@ -387,7 +387,7 @@ var CommandTable = _react2.default.createClass({
                 _react2.default.createElement(
                     'small',
                     null,
-                    this.props.origin
+                    title
                 )
             ),
             _react2.default.createElement(
@@ -398,7 +398,7 @@ var CommandTable = _react2.default.createClass({
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '3' }),
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '6' }),
-                !this.props.simpleview && _react2.default.createElement('colgroup', { className: 'col-result', span: '6' }),
+                _react2.default.createElement('colgroup', { className: 'col-result', span: '6' }),
                 !this.props.simpleview && _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
                 _react2.default.createElement(
                     'tbody',
@@ -439,12 +439,12 @@ var CommandTable = _react2.default.createClass({
                         ),
                         _react2.default.createElement(
                             'th',
-                            null,
+                            { colSpan: '1' },
                             '\xA0'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { colSpan: '9' },
+                            { colSpan: '8' },
                             'pool'
                         )
                     ),
@@ -693,14 +693,19 @@ var StreamsTable = _react2.default.createClass({
     render: function render() {
         var _this6 = this;
 
+        var args = [];
         var rows = this.state.rows.map(function (row) {
-            var args = JSON.stringify([{
+            var arg = {
                 auth: '',
                 delay: row.delay,
                 name: row.service,
+                service: row.service,
                 stream: row.stream,
+                org: row.org,
                 id: row.id
-            }]);
+            };
+            args.push(arg);
+            var argJson = JSON.stringify([arg]);
             return _react2.default.createElement(
                 'tr',
                 { key: row.id.toString() },
@@ -739,13 +744,13 @@ var StreamsTable = _react2.default.createClass({
                     { className: 'result' },
                     _react2.default.createElement(
                         'a',
-                        { href: '../monitor/table.jsp?streams=' + encodeURIComponent(args) },
+                        { href: '../monitor/table.jsp?streams=' + encodeURIComponent(argJson) },
                         'show'
                     ),
                     '\xA0',
                     _react2.default.createElement(
                         'a',
-                        { href: '../monitor/monitor.html?streams=' + encodeURIComponent(args) },
+                        { href: '../monitor/monitor.html?streams=' + encodeURIComponent(argJson) },
                         'graph'
                     )
                 )
@@ -761,6 +766,11 @@ var StreamsTable = _react2.default.createClass({
                     'a',
                     { href: '../monitor/table.jsp' },
                     'Dashboard'
+                ),
+                _react2.default.createElement(
+                    'a',
+                    { href: 'http://t.meituan.com', target: '_blank' },
+                    'ShortUrl'
                 )
             ),
             _react2.default.createElement(
@@ -847,7 +857,11 @@ var StreamsTable = _react2.default.createClass({
                             _react2.default.createElement(
                                 'th',
                                 { className: 'result' },
-                                '\xA0'
+                                _react2.default.createElement(
+                                    'a',
+                                    { href: '../monitor/table.jsp?streams=' + encodeURIComponent(JSON.stringify(args)) },
+                                    'show all'
+                                )
                             )
                         ),
                         rows
@@ -952,6 +966,11 @@ var TableView = _react2.default.createClass({
                     null,
                     _react2.default.createElement('input', { type: 'checkbox', onChange: this.onCheckSortByErrorThenVolume, checked: this.state.sortByErrorThenVolume }),
                     'Sort: Error then Volume'
+                ),
+                _react2.default.createElement(
+                    'a',
+                    { href: 'http://t.meituan.com', target: '_blank' },
+                    'ShortUrl'
                 )
             ),
             _react2.default.createElement(StreamsTable, { standalone: false }),

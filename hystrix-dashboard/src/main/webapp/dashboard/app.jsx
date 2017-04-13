@@ -238,17 +238,17 @@ let CommandTable = React.createClass({
                 </tr>
             );
         });
-
+        let title = '[' + this.props.streamInfo.org + '] ' + this.props.streamInfo.service + ' (' + this.props.origin + ')';
         return (
             <div>
-                {!this.props.simpleview&&<h2><small>{this.props.origin}</small></h2>}
+                {!this.props.simpleview&&<h2><small>{title}</small></h2>}
                 <table className="build" style={{float:(this.props.simpleview?'left':'none')}}>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="3"></colgroup>
                     <colgroup className="col-result" span="6"></colgroup>
-                    {!this.props.simpleview&&<colgroup className="col-result" span="6"></colgroup>}
+                    <colgroup className="col-result" span="6"></colgroup>
                     {!this.props.simpleview&&<colgroup className="col-result" span="1"></colgroup>}
                     <tbody>
                     <tr></tr>
@@ -259,8 +259,8 @@ let CommandTable = React.createClass({
                         <th colSpan="3">&nbsp;</th>
                         <th colSpan="6">latency</th>
                         <th colSpan="6">counter</th>
-                        <th>&nbsp;</th>
-                        {!this.props.simpleview&&<th colSpan="9">pool</th>}
+                        <th colSpan="1">&nbsp;</th>
+                        {!this.props.simpleview&&<th colSpan="8">pool</th>}
                     </tr>
                     <tr>
                         <th className="result arch">&nbsp;</th>
@@ -390,14 +390,19 @@ let StreamsTable = React.createClass({
     },
 
     render: function() {
+        let args = [];
         let rows = this.state.rows.map((row) => {
-            let args = JSON.stringify([{
+            let arg = {
                 auth: '',
                 delay: row.delay,
                 name: row.service,
+                service: row.service,
                 stream: row.stream,
+                org: row.org,
                 id: row.id
-            }]);
+            };
+            args.push(arg);
+            let argJson = JSON.stringify([arg]);
             return (
                 <tr key={row.id.toString()}>
                     <td className="result">{this.props.standalone ? row.id : <input type="checkbox" name={row.id} onChange={this.onStreamCheckbox} checked={row.checked}/>}</td>
@@ -407,8 +412,8 @@ let StreamsTable = React.createClass({
                     <td className="result">{row.delay}</td>
                     {this.props.standalone && <td className="result"><input name={row.id} type="submit" value="del" onClick={this.onDelete}/></td>}
                     <td className="result">
-                        <a href={'../monitor/table.jsp?streams='+encodeURIComponent(args)}>show</a>&nbsp;
-                        <a href={'../monitor/monitor.html?streams='+encodeURIComponent(args)}>graph</a>
+                        <a href={'../monitor/table.jsp?streams='+encodeURIComponent(argJson)}>show</a>&nbsp;
+                        <a href={'../monitor/monitor.html?streams='+encodeURIComponent(argJson)}>graph</a>
                     </td>
                 </tr>
             );
@@ -418,6 +423,7 @@ let StreamsTable = React.createClass({
                 {this.props.standalone &&
                 <nav className="dashboards">
                     <a href="../monitor/table.jsp">Dashboard</a>
+                    <a href="http://t.meituan.com" target="_blank">ShortUrl</a>
                 </nav>}
                 <center>
                     <table className="build streams" style={{width: '98%'}}>
@@ -441,7 +447,7 @@ let StreamsTable = React.createClass({
                             <th className="result stream"><input className="stream" type="text" name="stream" value={this.state.params.stream} onChange={this.onChange}/></th>
                             <th className="result"><input type="text" name="delay" value={this.state.params.delay} onChange={this.onChange}/></th>
                             <th className="result"><input type="submit" value="add" onClick={this.onAdd}/></th>
-                            <th className="result">&nbsp;</th>
+                            <th className="result"><a href={'../monitor/table.jsp?streams='+encodeURIComponent(JSON.stringify(args))}>show all</a></th>
                         </tr>}
                         {rows}
                         </tbody>
@@ -507,6 +513,7 @@ let TableView = React.createClass({
                     <input type="checkbox" onChange={this.onCheckSortByErrorThenVolume} checked={this.state.sortByErrorThenVolume}/>
                     Sort: Error then Volume
                 </label>
+                <a href="http://t.meituan.com" target="_blank">ShortUrl</a>
             </nav>
             <StreamsTable standalone={false} />
             {tables}

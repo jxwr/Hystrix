@@ -9,8 +9,10 @@
         label {
             padding: 0.5em;
         }
-        table {
-            min-width:48%;
+        ul {
+            list-style-type: none;
+            margin: 0px;
+            padding: 0px;
         }
         .build .result {
             text-align: center;
@@ -59,6 +61,6 @@
         <div class="clear"></div>
     </header>
     <div id="table_page"></div>
-    <script src="../dashboard/dist/bundle.js?ver=<%= System.currentTimeMillis() %>>"></script>
+    <script src="../dashboard/dist/bundle.js?ver=<%= System.currentTimeMillis()/10000 %>>"></script>
 </body>
 </html>
