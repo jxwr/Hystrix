@@ -9,23 +9,21 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 // Very simple CRUD, doGet for all, single connection
-public class StreamCRUDServlet extends HttpServlet {
+public class StreamInfoLocalStorageServlet extends HttpServlet {
 
-    private static String dbName = "hystrix_streams";
-    private static String dbUrl = "jdbc:h2:./db/hystrix_streams_db";
+    private static final String dbName = "hystrix_streams";
+    private static final String dbUrl = "jdbc:h2:./db/hystrix_streams_db";
 
-    private static Log log = LogFactory.getLog(StreamCRUDServlet.class);
+    private static final Log log = LogFactory.getLog(StreamInfoLocalStorageServlet.class);
 
     private static final long serialVersionUID = 1L;
 
-    public StreamCRUDServlet() {
+    public StreamInfoLocalStorageServlet() {
         try {
             Class.forName("org.h2.Driver");
         } catch (ClassNotFoundException e) {
@@ -42,7 +40,7 @@ public class StreamCRUDServlet extends HttpServlet {
             createTableIfNotExists(conn);
         } catch (SQLException e) {
             log.error("Create table failed, " + e.getMessage());
-            response.getOutputStream().write(("Create table failed, " + e.getMessage()).getBytes());
+            writeResponse(response, 1, "Create table failed, " + e.getMessage());
             return;
         }
 
@@ -54,14 +52,14 @@ public class StreamCRUDServlet extends HttpServlet {
             handleDelete(conn, request, response);
         } else {
             log.error("Invalid action " + (action == null ? "null" : action));
-            response.getOutputStream().write("Invalid action.".getBytes());
+            writeResponse(response, 1, "Invalid action.");
         }
 
         try {
             conn.close();
         } catch (SQLException e) {
             log.error(e.getMessage());
-            response.getOutputStream().write(("Close conneciton failure, " + e.getMessage()).getBytes());
+            writeResponse(response, 1, "Close conneciton failure, " + e.getMessage());
         }
     }
 
@@ -139,16 +137,16 @@ public class StreamCRUDServlet extends HttpServlet {
                 }
                 writeResponse(response, 0, infos);
             } catch (SQLException e ) {
-                writeResponse(response, 1, e.getMessage());
                 log.error(e.getMessage());
+                writeResponse(response, 1, e.getMessage());
             } finally {
                 if (stmt != null) {
                     stmt.close();
                 }
             }
         } catch (SQLException e) {
+            log.error(e.getMessage());
             writeResponse(response, 1, e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -175,10 +173,11 @@ public class StreamCRUDServlet extends HttpServlet {
     }
 
     private void createTableIfNotExists(Connection conn) throws SQLException {
-        String createString = "CREATE TABLE IF NOT EXISTS " + dbName +
-                "(id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-                "org VARCHAR(100) NOT NULL, service VARCHAR(100) NOT NULL, " +
-                "stream VARCHAR(4096) NOT NULL UNIQUE, delay INTEGER NOT NULL)";
+        String createString =
+                "CREATE TABLE IF NOT EXISTS " + dbName +
+                "(id     INTEGER AUTO_INCREMENT PRIMARY KEY, " +
+                " org    VARCHAR(100) NOT NULL, service VARCHAR(100) NOT NULL, " +
+                " stream VARCHAR(4096) NOT NULL UNIQUE, delay INTEGER NOT NULL)";
 
         Statement stmt = null;
         try {
@@ -270,6 +269,6 @@ public class StreamCRUDServlet extends HttpServlet {
         }
 
         private int code;
-        Object data;
+        private Object data;
     }
 }

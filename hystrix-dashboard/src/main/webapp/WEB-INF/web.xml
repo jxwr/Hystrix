@@ -40,12 +40,12 @@
 
 	<servlet>
 		<description />
-		<display-name>StreamCRUDServlet</display-name>
-		<servlet-name>StreamCRUDServlet</servlet-name>
-		<servlet-class>com.netflix.hystrix.dashboard.stream.StreamCRUDServlet</servlet-class>
+		<display-name>StreamInfoLocalStorageServlet</display-name>
+		<servlet-name>StreamInfoLocalStorageServlet</servlet-name>
+		<servlet-class>com.netflix.hystrix.dashboard.stream.StreamInfoLocalStorageServlet</servlet-class>
 	</servlet>
 	<servlet-mapping>
-		<servlet-name>StreamCRUDServlet</servlet-name>
+		<servlet-name>StreamInfoLocalStorageServlet</servlet-name>
 		<url-pattern>/streams</url-pattern>
 	</servlet-mapping>
 

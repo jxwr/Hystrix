@@ -760,7 +760,7 @@ var StreamsTable = _react2.default.createClass({
                 _react2.default.createElement(
                     'a',
                     { href: '../monitor/table.jsp' },
-                    'dashboard'
+                    'Dashboard'
                 )
             ),
             _react2.default.createElement(

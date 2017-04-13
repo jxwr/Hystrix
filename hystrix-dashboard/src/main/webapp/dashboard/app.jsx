@@ -417,7 +417,7 @@ let StreamsTable = React.createClass({
             <div>
                 {this.props.standalone &&
                 <nav className="dashboards">
-                    <a href="../monitor/table.jsp">dashboard</a>
+                    <a href="../monitor/table.jsp">Dashboard</a>
                 </nav>}
                 <center>
                     <table className="build streams" style={{width: '98%'}}>
