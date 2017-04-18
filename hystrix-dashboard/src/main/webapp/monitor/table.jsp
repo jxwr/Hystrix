@@ -9,6 +9,9 @@
         label {
             padding: 0.5em;
         }
+        table {
+            min-width:48%;
+        }
         ul {
             list-style-type: none;
             margin: 0px;
@@ -35,6 +38,15 @@
         }
         table.streams {
             border: 1px solid #E0EBF5;
+        }
+        .streams th:nth-child(2) {
+            min-width: 80px;
+        }
+        .streams th:nth-child(3) {
+            min-width: 140px;
+        }
+        .streams th:nth-child(4) {
+            min-width: 750px;
         }
         .fail {
             color: white;

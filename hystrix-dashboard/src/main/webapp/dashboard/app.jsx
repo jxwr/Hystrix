@@ -6,6 +6,8 @@ import { assertEqual, getUrlVars, getInstanceAverage, roundNumber, addCommas } f
 
 const urlVars = getUrlVars();
 
+let currentStreams = [];
+
 const streams = urlVars.streams ? JSON.parse(decodeURIComponent(urlVars.streams)) :
               urlVars.stream ? [{
                   stream: decodeURIComponent(urlVars.stream),
@@ -23,6 +25,8 @@ let CommandTable = React.createClass({
         this.source = new EventSource(proxyStream);
         this.source.addEventListener('message', this.onMessage, false);
         this.source.addEventListener('error', (e)=>{console.log(e);}, false);
+
+        currentStreams.push(this.source);
 
         this.sortfn = (msg) => { return msg.errorPercentage; };
         this.desc = false;
@@ -239,10 +243,21 @@ let CommandTable = React.createClass({
             );
         });
         let title = '[' + this.props.streamInfo.org + '] ' + this.props.streamInfo.service + ' (' + this.props.origin + ')';
+        if (rows.length == 0) {
+            rows = [0,1,2,3,4].map(c => {
+                return (
+                    <tr key={c.toString()}>
+                        <td className="result">{c}</td>
+                        <td className="result">Loading...</td>
+                        {_.range(2,19).map(n => {return <td className="result" key={n.toString()}>-</td>;})}
+                    </tr>
+                );
+            });
+        }
         return (
             <div>
                 {!this.props.simpleview&&<h2><small>{title}</small></h2>}
-                <table className="build" style={{float:(this.props.simpleview?'left':'none')}}>
+                <table className="build" style={{float:(this.props.simpleview?'left':'none'), minHeight:'130px'}}>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="1"></colgroup>
                     <colgroup className="col-result" span="1"></colgroup>
@@ -266,31 +281,67 @@ let CommandTable = React.createClass({
                         <th className="result arch">&nbsp;</th>
                         <th onClick={this.handleSorting('name')} className="result arch">name</th>
                         <th data-balloon="Reporting Hosts" className="result arch">h</th>
-                        <th onClick={this.handleSorting('ratePerSecond')} data-balloon="Total Request Rate per Second for Cluster" className="result arch">qps(c)</th>
-                        <th onClick={this.handleSorting('ratePerSecond')} data-balloon="Total Request Rate per Second per Reporting Host" className="result arch">qps</th>
-                        <th onClick={this.handleSorting('errorPercentage')} data-balloon="Error Percentage [Timed-out + Threadpool Rejected + Failure / Total]" className="result arch">err</th>
-                        <th onClick={this.handleSorting('latencyExecute_mean')} data-balloon="Mean" className="result arch">m</th>
+                        <th onClick={this.handleSorting('ratePerSecond')}
+                            data-balloon="Total Request Rate per Second for Cluster" className="result arch">qps(c)
+                        </th>
+                        <th onClick={this.handleSorting('ratePerSecond')}
+                            data-balloon="Total Request Rate per Second per Reporting Host" className="result arch">
+                            qps
+                        </th>
+                        <th onClick={this.handleSorting('errorPercentage')}
+                            data-balloon="Error Percentage [Timed-out + Threadpool Rejected + Failure / Total]"
+                            className="result arch">err
+                        </th>
+                        <th onClick={this.handleSorting('latencyExecute_mean')} data-balloon="Mean"
+                            className="result arch">m
+                        </th>
                         <th onClick={this.handleSorting('latencyExecute','50')} className="result arch">50</th>
                         <th onClick={this.handleSorting('latencyExecute','90')} className="result arch">90</th>
                         <th onClick={this.handleSorting('latencyExecute','95')} className="result arch">95</th>
                         <th onClick={this.handleSorting('latencyExecute','99')} className="result arch">99</th>
                         <th onClick={this.handleSorting('latencyExecute','99.5')} className="result arch">99.5</th>
-                        <th onClick={this.handleSorting('rollingCountSuccess')} data-balloon="Successful Request Count" className="result arch">succ</th>
-                        <th onClick={this.handleSorting('rollingCountShortCircuited')} data-balloon="Short-circuited Request Count" className="result arch">sc</th>
-                        <th onClick={this.handleSorting('rollingCountBadRequests')} data-balloon="Bad Request Count" className="result arch">bad</th>
-                        <th onClick={this.handleSorting('rollingCountTimeout')} data-balloon="Timed-out Request Count" className="result arch">to</th>
-                        <th onClick={this.handleSorting('rollingCountThreadPoolRejected')} data-balloon="Rejected Request Count" className="result arch">rej</th>
-                        <th onClick={this.handleSorting('rollingCountFailure')} data-balloon="Failure Request Count" className="result arch">fa</th>
-                        <th onClick={this.handleSorting('isCircuitBreakerOpen')} data-balloon="Circuit Status" className="result arch">circuit</th>
+                        <th onClick={this.handleSorting('rollingCountSuccess')}
+                            data-balloon="Successful Request Count" className="result arch">succ
+                        </th>
+                        <th onClick={this.handleSorting('rollingCountShortCircuited')}
+                            data-balloon="Short-circuited Request Count" className="result arch">sc
+                        </th>
+                        <th onClick={this.handleSorting('rollingCountBadRequests')} data-balloon="Bad Request Count"
+                            className="result arch">bad
+                        </th>
+                        <th onClick={this.handleSorting('rollingCountTimeout')}
+                            data-balloon="Timed-out Request Count" className="result arch">to
+                        </th>
+                        <th onClick={this.handleSorting('rollingCountThreadPoolRejected')}
+                            data-balloon="Rejected Request Count" className="result arch">rej
+                        </th>
+                        <th onClick={this.handleSorting('rollingCountFailure')} data-balloon="Failure Request Count"
+                            className="result arch">fa
+                        </th>
+                        <th onClick={this.handleSorting('isCircuitBreakerOpen')} data-balloon="Circuit Status"
+                            className="result arch">circuit
+                        </th>
 
-                        {!this.props.simpleview&&<th onClick={this.handleSorting('threadPool')} data-balloon="Thread Pool" className="result arch">pool</th>}
-                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','ratePerSecond')} data-balloon="Total Execution Rate per Second for Cluster" className="result arch">qps(c)</th>}
-                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','ratePerSecondPerHost')} data-balloon="Total Execution Rate per Second per Reporting Host" className="result arch">qps</th>}
-                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentActiveCount')} data-balloon="Active" className="result arch">act</th>}
-                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','rollingMaxActiveThreads')} data-balloon="Max Active" className="result arch">mact</th>}
-                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentQueueSize')} data-balloon="Queued - CurrentQueueSize" className="result arch">qd</th>}
-                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentPoolSize')} data-balloon="Pool Size" className="result arch">ps</th>}
-                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','propertyValue_queueSizeRejectionThreshold')} data-balloon="Queue Size - QueueSizeRejectionThreshold" className="result arch">qs</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('threadPool')}
+                                                     data-balloon="Thread Pool" className="result arch">pool</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','ratePerSecond')}
+                                                     data-balloon="Total Execution Rate per Second for Cluster"
+                                                     className="result arch">qps(c)</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','ratePerSecondPerHost')}
+                                                     data-balloon="Total Execution Rate per Second per Reporting Host"
+                                                     className="result arch">qps</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentActiveCount')}
+                                                     data-balloon="Active" className="result arch">act</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','rollingMaxActiveThreads')}
+                                                     data-balloon="Max Active" className="result arch">mact</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentQueueSize')}
+                                                     data-balloon="Queued - CurrentQueueSize"
+                                                     className="result arch">qd</th>}
+                        {!this.props.simpleview&&<th onClick={this.handleSorting('pool','currentPoolSize')}
+                                                     data-balloon="Pool Size" className="result arch">ps</th>}
+                        {!this.props.simpleview&&<th
+                            onClick={this.handleSorting('pool','propertyValue_queueSizeRejectionThreshold')}
+                            data-balloon="Queue Size - QueueSizeRejectionThreshold" className="result arch">qs</th>}
                     </tr>
                     {rows}
                     </tbody>
@@ -384,6 +435,8 @@ let StreamsTable = React.createClass({
             }
         }
         this.setState({rows: rows});
+
+        currentStreams.map(s => s.close());
 
         let args = JSON.stringify(rows.filter((row) => { return row.checked; }));
         location = '../monitor/table.jsp?streams='+encodeURIComponent(args);
@@ -482,6 +535,14 @@ let TableView = React.createClass({
             if (s != undefined) {
                 origin = s.stream;
 
+                if (!origin.includes('.sankuai.com')) {
+                    let idc = origin.slice(0, 2);
+                    if (_.isNaN(parseInt(idc))) {
+                        origin = origin.replace(':', '.' + idc + '.sankuai.com:');
+                        s.stream = origin;
+                    }
+                }
+
                 if (s.delay) {
                     origin = origin + "&delay=" + s.delay;
                 }
@@ -513,10 +574,11 @@ let TableView = React.createClass({
                     <input type="checkbox" onChange={this.onCheckSortByErrorThenVolume} checked={this.state.sortByErrorThenVolume}/>
                     Sort: Error then Volume
                 </label>
-                <a href="http://t.meituan.com" target="_blank">ShortUrl</a>
             </nav>
             <StreamsTable standalone={false} />
+            <div id="dashboard-container" style={{minWidth:'1800px'}}>
             {tables}
+            </div>
         </div>;
     }
 });

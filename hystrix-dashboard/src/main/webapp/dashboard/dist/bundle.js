@@ -21,6 +21,8 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 
 var urlVars = (0, _util.getUrlVars)();
 
+var currentStreams = [];
+
 var streams = urlVars.streams ? JSON.parse(decodeURIComponent(urlVars.streams)) : urlVars.stream ? [{
     stream: decodeURIComponent(urlVars.stream),
     delay: urlVars.delay,
@@ -41,6 +43,8 @@ var CommandTable = _react2.default.createClass({
         this.source.addEventListener('error', function (e) {
             console.log(e);
         }, false);
+
+        currentStreams.push(this.source);
 
         this.sortfn = function (msg) {
             return msg.errorPercentage;
@@ -378,6 +382,31 @@ var CommandTable = _react2.default.createClass({
             );
         });
         var title = '[' + this.props.streamInfo.org + '] ' + this.props.streamInfo.service + ' (' + this.props.origin + ')';
+        if (rows.length == 0) {
+            rows = [0, 1, 2, 3, 4].map(function (c) {
+                return _react2.default.createElement(
+                    'tr',
+                    { key: c.toString() },
+                    _react2.default.createElement(
+                        'td',
+                        { className: 'result' },
+                        c
+                    ),
+                    _react2.default.createElement(
+                        'td',
+                        { className: 'result' },
+                        'Loading...'
+                    ),
+                    _.range(2, 19).map(function (n) {
+                        return _react2.default.createElement(
+                            'td',
+                            { className: 'result', key: n.toString() },
+                            '-'
+                        );
+                    })
+                );
+            });
+        }
         return _react2.default.createElement(
             'div',
             null,
@@ -392,7 +421,7 @@ var CommandTable = _react2.default.createClass({
             ),
             _react2.default.createElement(
                 'table',
-                { className: 'build', style: { float: this.props.simpleview ? 'left' : 'none' } },
+                { className: 'build', style: { float: this.props.simpleview ? 'left' : 'none', minHeight: '130px' } },
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
                 _react2.default.createElement('colgroup', { className: 'col-result', span: '1' }),
@@ -468,22 +497,27 @@ var CommandTable = _react2.default.createClass({
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('ratePerSecond'), 'data-balloon': 'Total Request Rate per Second for Cluster', className: 'result arch' },
+                            { onClick: this.handleSorting('ratePerSecond'),
+                                'data-balloon': 'Total Request Rate per Second for Cluster', className: 'result arch' },
                             'qps(c)'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('ratePerSecond'), 'data-balloon': 'Total Request Rate per Second per Reporting Host', className: 'result arch' },
+                            { onClick: this.handleSorting('ratePerSecond'),
+                                'data-balloon': 'Total Request Rate per Second per Reporting Host', className: 'result arch' },
                             'qps'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('errorPercentage'), 'data-balloon': 'Error Percentage [Timed-out + Threadpool Rejected + Failure / Total]', className: 'result arch' },
+                            { onClick: this.handleSorting('errorPercentage'),
+                                'data-balloon': 'Error Percentage [Timed-out + Threadpool Rejected + Failure / Total]',
+                                className: 'result arch' },
                             'err'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('latencyExecute_mean'), 'data-balloon': 'Mean', className: 'result arch' },
+                            { onClick: this.handleSorting('latencyExecute_mean'), 'data-balloon': 'Mean',
+                                className: 'result arch' },
                             'm'
                         ),
                         _react2.default.createElement(
@@ -513,77 +547,96 @@ var CommandTable = _react2.default.createClass({
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('rollingCountSuccess'), 'data-balloon': 'Successful Request Count', className: 'result arch' },
+                            { onClick: this.handleSorting('rollingCountSuccess'),
+                                'data-balloon': 'Successful Request Count', className: 'result arch' },
                             'succ'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('rollingCountShortCircuited'), 'data-balloon': 'Short-circuited Request Count', className: 'result arch' },
+                            { onClick: this.handleSorting('rollingCountShortCircuited'),
+                                'data-balloon': 'Short-circuited Request Count', className: 'result arch' },
                             'sc'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('rollingCountBadRequests'), 'data-balloon': 'Bad Request Count', className: 'result arch' },
+                            { onClick: this.handleSorting('rollingCountBadRequests'), 'data-balloon': 'Bad Request Count',
+                                className: 'result arch' },
                             'bad'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('rollingCountTimeout'), 'data-balloon': 'Timed-out Request Count', className: 'result arch' },
+                            { onClick: this.handleSorting('rollingCountTimeout'),
+                                'data-balloon': 'Timed-out Request Count', className: 'result arch' },
                             'to'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('rollingCountThreadPoolRejected'), 'data-balloon': 'Rejected Request Count', className: 'result arch' },
+                            { onClick: this.handleSorting('rollingCountThreadPoolRejected'),
+                                'data-balloon': 'Rejected Request Count', className: 'result arch' },
                             'rej'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('rollingCountFailure'), 'data-balloon': 'Failure Request Count', className: 'result arch' },
+                            { onClick: this.handleSorting('rollingCountFailure'), 'data-balloon': 'Failure Request Count',
+                                className: 'result arch' },
                             'fa'
                         ),
                         _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('isCircuitBreakerOpen'), 'data-balloon': 'Circuit Status', className: 'result arch' },
+                            { onClick: this.handleSorting('isCircuitBreakerOpen'), 'data-balloon': 'Circuit Status',
+                                className: 'result arch' },
                             'circuit'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('threadPool'), 'data-balloon': 'Thread Pool', className: 'result arch' },
+                            { onClick: this.handleSorting('threadPool'),
+                                'data-balloon': 'Thread Pool', className: 'result arch' },
                             'pool'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('pool', 'ratePerSecond'), 'data-balloon': 'Total Execution Rate per Second for Cluster', className: 'result arch' },
+                            { onClick: this.handleSorting('pool', 'ratePerSecond'),
+                                'data-balloon': 'Total Execution Rate per Second for Cluster',
+                                className: 'result arch' },
                             'qps(c)'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('pool', 'ratePerSecondPerHost'), 'data-balloon': 'Total Execution Rate per Second per Reporting Host', className: 'result arch' },
+                            { onClick: this.handleSorting('pool', 'ratePerSecondPerHost'),
+                                'data-balloon': 'Total Execution Rate per Second per Reporting Host',
+                                className: 'result arch' },
                             'qps'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('pool', 'currentActiveCount'), 'data-balloon': 'Active', className: 'result arch' },
+                            { onClick: this.handleSorting('pool', 'currentActiveCount'),
+                                'data-balloon': 'Active', className: 'result arch' },
                             'act'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('pool', 'rollingMaxActiveThreads'), 'data-balloon': 'Max Active', className: 'result arch' },
+                            { onClick: this.handleSorting('pool', 'rollingMaxActiveThreads'),
+                                'data-balloon': 'Max Active', className: 'result arch' },
                             'mact'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('pool', 'currentQueueSize'), 'data-balloon': 'Queued - CurrentQueueSize', className: 'result arch' },
+                            { onClick: this.handleSorting('pool', 'currentQueueSize'),
+                                'data-balloon': 'Queued - CurrentQueueSize',
+                                className: 'result arch' },
                             'qd'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('pool', 'currentPoolSize'), 'data-balloon': 'Pool Size', className: 'result arch' },
+                            { onClick: this.handleSorting('pool', 'currentPoolSize'),
+                                'data-balloon': 'Pool Size', className: 'result arch' },
                             'ps'
                         ),
                         !this.props.simpleview && _react2.default.createElement(
                             'th',
-                            { onClick: this.handleSorting('pool', 'propertyValue_queueSizeRejectionThreshold'), 'data-balloon': 'Queue Size - QueueSizeRejectionThreshold', className: 'result arch' },
+                            {
+                                onClick: this.handleSorting('pool', 'propertyValue_queueSizeRejectionThreshold'),
+                                'data-balloon': 'Queue Size - QueueSizeRejectionThreshold', className: 'result arch' },
                             'qs'
                         )
                     ),
@@ -683,6 +736,10 @@ var StreamsTable = _react2.default.createClass({
             }
         }
         this.setState({ rows: rows });
+
+        currentStreams.map(function (s) {
+            return s.close();
+        });
 
         var args = JSON.stringify(rows.filter(function (row) {
             return row.checked;
@@ -900,6 +957,14 @@ var TableView = _react2.default.createClass({
             if (s != undefined) {
                 origin = s.stream;
 
+                if (!origin.includes('.sankuai.com')) {
+                    var idc = origin.slice(0, 2);
+                    if (_.isNaN(parseInt(idc))) {
+                        origin = origin.replace(':', '.' + idc + '.sankuai.com:');
+                        s.stream = origin;
+                    }
+                }
+
                 if (s.delay) {
                     origin = origin + "&delay=" + s.delay;
                 }
@@ -966,15 +1031,14 @@ var TableView = _react2.default.createClass({
                     null,
                     _react2.default.createElement('input', { type: 'checkbox', onChange: this.onCheckSortByErrorThenVolume, checked: this.state.sortByErrorThenVolume }),
                     'Sort: Error then Volume'
-                ),
-                _react2.default.createElement(
-                    'a',
-                    { href: 'http://t.meituan.com', target: '_blank' },
-                    'ShortUrl'
                 )
             ),
             _react2.default.createElement(StreamsTable, { standalone: false }),
-            tables
+            _react2.default.createElement(
+                'div',
+                { id: 'dashboard-container', style: { minWidth: '1800px' } },
+                tables
+            )
         );
     }
 });
