@@ -1,12 +1,15 @@
 import * as _ from 'underscore';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import Rx from 'rx-dom';
 
 import { assertEqual, getUrlVars, getInstanceAverage, roundNumber, addCommas } from './util';
 
 const urlVars = getUrlVars();
 
-let currentStreams = [];
+let allSockets = [];
+
+delete window.document.referrer;
 
 const streams = urlVars.streams ? JSON.parse(decodeURIComponent(urlVars.streams)) :
               urlVars.stream ? [{
@@ -21,12 +24,25 @@ const streams = urlVars.streams ? JSON.parse(decodeURIComponent(urlVars.streams)
 
 let CommandTable = React.createClass({
     getInitialState: function() {
-        let proxyStream = "../proxy.stream?origin=" + this.props.origin;
-        this.source = new EventSource(proxyStream);
-        this.source.addEventListener('message', this.onMessage, false);
-        this.source.addEventListener('error', (e)=>{console.log(e);}, false);
+        let wssocket = Rx.DOM.fromWebSocket(
+            window.location.origin.replace('http://', 'ws://') +
+                window.location.pathname.replace(/monitor\/.*/, 'ws/stream/proxy'),
+            null,
+            Rx.Observer.create(() => {
+                wssocket.onNext(JSON.stringify({
+                    origin: this.props.origin,
+                    delay: 1000
+                }));
+            }),
+            Rx.Observer.create(() => {
+                console.log('Closing socket');
+            })
+        );
 
-        currentStreams.push(this.source);
+        wssocket.subscribe(this.onMessage, (e) => { console.log(e); }, () => {});
+
+        this.wssocket = wssocket;
+        allSockets.push(wssocket);
 
         this.sortfn = (msg) => { return msg.errorPercentage; };
         this.desc = false;
@@ -114,7 +130,7 @@ let CommandTable = React.createClass({
 
     onMessage: function(e) {
         try {
-            let msg = JSON.parse(e.data);
+            let msg = JSON.parse(e.data.slice(6));
 
             if (msg && msg.type == 'HystrixCommand') {
                 this.convertCommandAllAvg(msg);
@@ -149,8 +165,9 @@ let CommandTable = React.createClass({
             if (Date.now() - this.lastUpdateTime > 200) {
                 this.updateRows();
             }
-        } catch(e) {
-            console.log(e);
+        } catch(ex) {
+            console.log(e.data);
+            console.log(ex);
         }
     },
 
@@ -436,7 +453,7 @@ let StreamsTable = React.createClass({
         }
         this.setState({rows: rows});
 
-        currentStreams.map(s => s.close());
+        allSockets.map(s => s.onCompleted());
 
         let args = JSON.stringify(rows.filter((row) => { return row.checked; }));
         location = '../monitor/table.jsp?streams='+encodeURIComponent(args);

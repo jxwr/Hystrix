@@ -15,6 +15,18 @@
             font-size: 8px;
             min-width: 800px;
         }
+        .build td, .build th {
+            font-size: 9pt;
+        }
+        .streams th:nth-child(2) {
+            min-width: 80px;
+        }
+        .streams th:nth-child(3) {
+            min-width: 140px;
+        }
+        .streams th:nth-child(4) {
+            min-width: 750px;
+        }
     </style>
 </head>
 <body>
