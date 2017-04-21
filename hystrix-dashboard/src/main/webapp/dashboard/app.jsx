@@ -455,7 +455,9 @@ let StreamsTable = React.createClass({
 
         allSockets.map(s => s.onCompleted());
 
-        let args = JSON.stringify(rows.filter((row) => { return row.checked; }));
+        let args = JSON.stringify(
+            rows.filter(row => { return row.checked; } ).map(r => { return { id: r.id}; })
+        );
         location = '../monitor/table.jsp?streams='+encodeURIComponent(args);
     },
 
@@ -463,12 +465,6 @@ let StreamsTable = React.createClass({
         let args = [];
         let rows = this.state.rows.map((row) => {
             let arg = {
-                auth: '',
-                delay: row.delay,
-                name: row.service,
-                service: row.service,
-                stream: row.stream,
-                org: row.org,
                 id: row.id
             };
             args.push(arg);
@@ -549,8 +545,19 @@ let TableView = React.createClass({
     render: function() {
         let tables = streams.map((s, i) => {
             let origin;
+            let streamInfos = this.props.streamInfos;
             if (s != undefined) {
                 origin = s.stream;
+
+                if (!origin) {
+                    for (var i = 0; i < streamInfos.length; i++) {
+                        if (streamInfos[i].id == s.id) {
+                            console.log('set origin = ' + streamInfos[i].stream);
+                            origin = streamInfos[i].stream;
+                            s = streamInfos[i];
+                        }
+                    }
+                }
 
                 if (!origin.includes('.sankuai.com')) {
                     let idc = origin.slice(0, 2);
@@ -601,10 +608,17 @@ let TableView = React.createClass({
 });
 
 if (document.getElementById("table_page") != null) {
-    ReactDOM.render(
-        <TableView />,
-        document.getElementById('table_page')
-    );
+    fetch('../streams?action=read').then((raw) => {
+        return raw.json();
+    }).then((resp) => {
+        if (resp.code == 0) {
+            console.log(resp.data);
+            ReactDOM.render(
+                <TableView streamInfos={resp.data}/>,
+                document.getElementById('table_page')
+            );
+        }
+    });
 }
 
 if (document.getElementById("streams_page") != null) {

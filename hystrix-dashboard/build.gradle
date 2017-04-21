@@ -14,6 +14,5 @@ dependencies {
 
 gretty {
 	httpPort = 7979
-    servletContainer = 'jetty9'
-
+	servletContainer = 'jetty9'
 }

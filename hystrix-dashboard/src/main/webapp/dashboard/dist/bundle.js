@@ -759,6 +759,8 @@ var StreamsTable = _react2.default.createClass({
 
         var args = JSON.stringify(rows.filter(function (row) {
             return row.checked;
+        }).map(function (r) {
+            return { id: r.id };
         }));
         location = '../monitor/table.jsp?streams=' + encodeURIComponent(args);
     },
@@ -769,12 +771,6 @@ var StreamsTable = _react2.default.createClass({
         var args = [];
         var rows = this.state.rows.map(function (row) {
             var arg = {
-                auth: '',
-                delay: row.delay,
-                name: row.service,
-                service: row.service,
-                stream: row.stream,
-                org: row.org,
                 id: row.id
             };
             args.push(arg);
@@ -970,8 +966,19 @@ var TableView = _react2.default.createClass({
 
         var tables = streams.map(function (s, i) {
             var origin = void 0;
+            var streamInfos = _this8.props.streamInfos;
             if (s != undefined) {
                 origin = s.stream;
+
+                if (!origin) {
+                    for (var i = 0; i < streamInfos.length; i++) {
+                        if (streamInfos[i].id == s.id) {
+                            console.log('set origin = ' + streamInfos[i].stream);
+                            origin = streamInfos[i].stream;
+                            s = streamInfos[i];
+                        }
+                    }
+                }
 
                 if (!origin.includes('.sankuai.com')) {
                     var idc = origin.slice(0, 2);
@@ -1060,7 +1067,14 @@ var TableView = _react2.default.createClass({
 });
 
 if (document.getElementById("table_page") != null) {
-    _reactDom2.default.render(_react2.default.createElement(TableView, null), document.getElementById('table_page'));
+    fetch('../streams?action=read').then(function (raw) {
+        return raw.json();
+    }).then(function (resp) {
+        if (resp.code == 0) {
+            console.log(resp.data);
+            _reactDom2.default.render(_react2.default.createElement(TableView, { streamInfos: resp.data }), document.getElementById('table_page'));
+        }
+    });
 }
 
 if (document.getElementById("streams_page") != null) {
