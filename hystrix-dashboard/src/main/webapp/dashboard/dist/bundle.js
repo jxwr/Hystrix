@@ -770,11 +770,20 @@ var StreamsTable = _react2.default.createClass({
 
         var args = [];
         var rows = this.state.rows.map(function (row) {
-            var arg = {
+            var argShow = {
                 id: row.id
             };
-            args.push(arg);
-            var argJson = JSON.stringify([arg]);
+            args.push(argShow);
+            var argShowJson = JSON.stringify([argShow]);
+
+            var argGraph = {
+                id: row.id,
+                auth: '',
+                delay: row.delay,
+                name: row.service,
+                stream: row.stream
+            };
+            var argGraphJson = JSON.stringify([argGraph]);
             return _react2.default.createElement(
                 'tr',
                 { key: row.id.toString() },
@@ -813,13 +822,13 @@ var StreamsTable = _react2.default.createClass({
                     { className: 'result' },
                     _react2.default.createElement(
                         'a',
-                        { href: '../monitor/table.jsp?streams=' + encodeURIComponent(argJson) },
+                        { href: '../monitor/table.jsp?streams=' + encodeURIComponent(argShowJson) },
                         'show'
                     ),
                     '\xA0',
                     _react2.default.createElement(
                         'a',
-                        { href: '../monitor/monitor.html?streams=' + encodeURIComponent(argJson) },
+                        { href: '../monitor/monitor.html?streams=' + encodeURIComponent(argGraphJson) },
                         'graph'
                     )
                 )

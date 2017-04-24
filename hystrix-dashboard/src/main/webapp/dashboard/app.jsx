@@ -464,11 +464,20 @@ let StreamsTable = React.createClass({
     render: function() {
         let args = [];
         let rows = this.state.rows.map((row) => {
-            let arg = {
+            let argShow = {
                 id: row.id
             };
-            args.push(arg);
-            let argJson = JSON.stringify([arg]);
+            args.push(argShow);
+            let argShowJson = JSON.stringify([argShow]);
+
+            let argGraph = {
+                id: row.id,
+                auth: '',
+                delay: row.delay,
+                name: row.service,
+                stream: row.stream
+            };
+            let argGraphJson = JSON.stringify([argGraph]);
             return (
                 <tr key={row.id.toString()}>
                     <td className="result">{this.props.standalone ? row.id : <input type="checkbox" name={row.id} onChange={this.onStreamCheckbox} checked={row.checked}/>}</td>
@@ -478,8 +487,8 @@ let StreamsTable = React.createClass({
                     <td className="result">{row.delay}</td>
                     {this.props.standalone && <td className="result"><input name={row.id} type="submit" value="del" onClick={this.onDelete}/></td>}
                     <td className="result">
-                        <a href={'../monitor/table.jsp?streams='+encodeURIComponent(argJson)}>show</a>&nbsp;
-                        <a href={'../monitor/monitor.html?streams='+encodeURIComponent(argJson)}>graph</a>
+                        <a href={'../monitor/table.jsp?streams='+encodeURIComponent(argShowJson)}>show</a>&nbsp;
+                        <a href={'../monitor/monitor.html?streams='+encodeURIComponent(argGraphJson)}>graph</a>
                     </td>
                 </tr>
             );
