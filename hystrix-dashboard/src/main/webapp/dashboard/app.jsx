@@ -405,9 +405,9 @@ let StreamsTable = React.createClass({
 
     onAdd: function() {
         let params = this.state.params;
-        let args = '&org=' + encodeURIComponent(params.org) +
-            '&service=' + encodeURIComponent(params.service) +
-            '&stream=' + encodeURIComponent(params.stream) +
+        let args = '&org=' + encodeURIComponent(params.org.trim()) +
+            '&service=' + encodeURIComponent(params.service.trim()) +
+            '&stream=' + encodeURIComponent(params.stream.trim()) +
             '&delay=' + params.delay;
 
         fetch('../streams?action=create' + args).then((raw) => {
@@ -568,6 +568,9 @@ let TableView = React.createClass({
                     }
                 }
 
+                if (origin.startsWith('http://')) {
+                    origin = origin.slice(7, -1);
+                }
                 if (!origin.includes('.sankuai.com')) {
                     let idc = origin.slice(0, 2);
                     if (_.isNaN(parseInt(idc))) {

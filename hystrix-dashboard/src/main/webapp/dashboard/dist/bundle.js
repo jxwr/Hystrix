@@ -706,7 +706,7 @@ var StreamsTable = _react2.default.createClass({
         var _this5 = this;
 
         var params = this.state.params;
-        var args = '&org=' + encodeURIComponent(params.org) + '&service=' + encodeURIComponent(params.service) + '&stream=' + encodeURIComponent(params.stream) + '&delay=' + params.delay;
+        var args = '&org=' + encodeURIComponent(params.org.trim()) + '&service=' + encodeURIComponent(params.service.trim()) + '&stream=' + encodeURIComponent(params.stream.trim()) + '&delay=' + params.delay;
 
         fetch('../streams?action=create' + args).then(function (raw) {
             return raw.json();
@@ -989,6 +989,9 @@ var TableView = _react2.default.createClass({
                     }
                 }
 
+                if (origin.startsWith('http://')) {
+                    origin = origin.slice(7, -1);
+                }
                 if (!origin.includes('.sankuai.com')) {
                     var idc = origin.slice(0, 2);
                     if (_.isNaN(parseInt(idc))) {

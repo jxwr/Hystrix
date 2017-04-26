@@ -65,6 +65,7 @@
         .purple { color: purple; }
         .purple { color: purple; }
         .red { color: red; }
+        #table_page { min-height: 3000px; }
     </style>
 </head>
 <body>

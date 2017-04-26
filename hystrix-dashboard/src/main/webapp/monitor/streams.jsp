@@ -27,6 +27,7 @@
         .streams th:nth-child(4) {
             min-width: 750px;
         }
+        #streams_page { min-height: 3000px; }
     </style>
 </head>
 <body>
