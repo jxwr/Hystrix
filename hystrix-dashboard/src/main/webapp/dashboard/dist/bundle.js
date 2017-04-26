@@ -786,7 +786,7 @@ var StreamsTable = _react2.default.createClass({
             var argGraphJson = JSON.stringify([argGraph]);
             return _react2.default.createElement(
                 'tr',
-                { key: row.id.toString() },
+                { className: 'commit', key: row.id.toString() },
                 _react2.default.createElement(
                     'td',
                     { className: 'result' },

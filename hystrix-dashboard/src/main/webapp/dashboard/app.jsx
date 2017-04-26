@@ -479,7 +479,7 @@ let StreamsTable = React.createClass({
             };
             let argGraphJson = JSON.stringify([argGraph]);
             return (
-                <tr key={row.id.toString()}>
+                <tr className="commit" key={row.id.toString()}>
                     <td className="result">{this.props.standalone ? row.id : <input type="checkbox" name={row.id} onChange={this.onStreamCheckbox} checked={row.checked}/>}</td>
                     <td className="result">{row.org}</td>
                     <td className="result service">{row.service}</td>

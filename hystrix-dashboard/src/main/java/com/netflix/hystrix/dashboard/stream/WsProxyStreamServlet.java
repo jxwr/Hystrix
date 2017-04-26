@@ -22,6 +22,9 @@ import javax.websocket.*;
 import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpoint;
 
+/**
+ * ProxyStreamServlet websocket version
+ */
 @ServerEndpoint("/ws/stream/proxy")
 public class WsProxyStreamServlet implements ServletContextListener {
     private ConcurrentHashMap<String, Boolean> sessionMap = new ConcurrentHashMap<String, Boolean>();
