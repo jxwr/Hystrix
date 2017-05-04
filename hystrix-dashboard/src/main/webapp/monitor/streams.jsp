@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Hystrix Monitor</title>
-    <link rel="stylesheet" href="https://build.golang.org/static/style.css"/>
+    <link rel="stylesheet" href="../css/golang-build.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/balloon-css/0.2.4/balloon.min.css">
     <style>
         .build .result {
@@ -12,7 +12,6 @@
             font-family: monospace;
         }
         .build .stream {
-            font-size: 8px;
             min-width: 800px;
         }
         .build td, .build th {
